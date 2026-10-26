@@ -1,0 +1,11 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { detect, fingerprint, isHealthy } from '../lib/detection';
+import type { Metric } from '../lib/domain';
+const metric:Metric={service:'checkout',at:new Date().toISOString(),errorRate:0,p95:40,rpm:200,saturation:.1,requests:40,source:'laboratory'};
+test('não detecta incidente sem amostras suficientes',()=>assert.equal(detect({...metric,errorRate:1,requests:1}),null));
+test('detecta erros sustentáveis sem confundir latência saudável',()=>assert.equal(detect({...metric,errorRate:.2})?.kind,'errors'));
+test('reconhece lentidão mesmo sem erro HTTP',()=>assert.equal(detect({...metric,p95:650})?.kind,'latency'));
+test('não considera ausência de tráfego como recuperação',()=>assert.equal(isHealthy({...metric,requests:0}),false));
+test('recuperação exige todos os sinais saudáveis',()=>{assert.equal(isHealthy(metric),true);assert.equal(isHealthy({...metric,saturation:.99}),false);});
+test('fingerprint agrupa sintomas do mesmo serviço e separa ambientes',()=>{assert.equal(fingerprint('checkout','lab'),fingerprint('checkout','lab'));assert.notEqual(fingerprint('checkout','lab'),fingerprint('checkout','prod'));});

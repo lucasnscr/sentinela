@@ -1,0 +1,118 @@
+import { randomUUID } from 'node:crypto';
+import { config } from '../lib/config';
+import { recordAiFailure } from '../lib/ai';
+import { claimCommand, closeIncident, enqueue, event, findIncident, finishCommand, getMeta, incidentFromRow, migrate, openIncident, pool, prune, setMeta, updateIncident } from '../lib/db';
+import { detect, fingerprint, isHealthy } from '../lib/detection';
+import { indexKnowledge, seedKnowledge } from '../lib/knowledge';
+import { safeError } from '../lib/security';
+import type { Metric, Scenario } from '../lib/domain';
+import { Laboratory } from './laboratory';
+import { connectTools } from './mcp-client';
+import { createInvestigator } from './investigation';
+import { samplePrometheus } from './prometheus';
+import { startTelemetry, stopTelemetry } from './observability';
+
+startTelemetry();
+await migrate();
+const lease=await pool.connect();
+const acquired=await lease.query('SELECT pg_try_advisory_lock(742902) AS acquired');
+if(!acquired.rows[0].acquired){console.error('Já existe um worker ativo para este banco.');await pool.end();process.exit(1);}
+const workerId=randomUUID();
+await setMeta('workerId',workerId);await setMeta('aiMode',config.aiMode);await setMeta('mcp',false);
+await pool.query("UPDATE commands SET status='queued',updated_at=now() WHERE status='executing'");
+await seedKnowledge();
+const lab=config.labEnabled?new Laboratory():null;
+if(lab)await lab.start();
+const tools=await connectTools();await setMeta('mcp',true);
+const investigator=await createInvestigator(tools,lab);
+await event('worker','Monitoramento ativo','Worker '+workerId.slice(0,8)+'; consultas a cada '+(config.interval/1000)+' segundos.');
+console.log('Sentinela worker ativo. Laboratório: '+(lab?'http://127.0.0.1:'+config.labPort:'desabilitado'));
+void indexKnowledge().then(()=>event('knowledge','Base de conhecimento pronta','Runbooks disponíveis para recuperação.')).catch(error=>event('knowledge','Busca lexical disponível',safeError(error)));
+
+const consecutive=new Map<string,number>(),healthy=new Map<string,number>(),running=new Set<string>();
+let closing=false;
+const pending=new Set<Promise<unknown>>();
+function launch(id:string,resume=false){
+  if(running.has(id)||closing||running.size>=2)return;
+  running.add(id);
+  const task=investigator.investigate(id,resume).catch(async error=>{
+    const message=safeError(error);
+    await updateIncident(id,{stage:'failed',lastError:message});
+    await event('error','A investigação precisa ser retomada',message,id);
+  }).finally(()=>{running.delete(id);pending.delete(task);});
+  pending.add(task);
+}
+const unfinished=await pool.query("SELECT id FROM incidents WHERE status='investigating' AND stage IN ('queued','collecting','analyzing','checking','failed')");
+for(const row of unfinished.rows)launch(row.id,true);
+let lastPrune=0;
+async function monitor(){
+  await setMeta('heartbeat',new Date().toISOString());
+  const metrics=config.prometheusUrl?await samplePrometheus():lab?await lab.sample():[];
+  const environment=config.prometheusUrl?'configured':'laboratory';
+  const active=await pool.query("SELECT * FROM incidents WHERE status <> 'resolved'");
+  for(const row of active.rows){
+    if(row.stage==='queued'&&!running.has(row.id))launch(row.id);
+    const incident=incidentFromRow(row);
+    const metric=metrics.find(m=>m.service===incident.service);
+    if(metric&&isHealthy(metric)){
+      const count=(healthy.get(incident.id)||0)+1;healthy.set(incident.id,count);
+      if(count>=3&&!running.has(incident.id))await closeIncident(incident.id);
+    }else healthy.set(incident.id,0);
+    if(incident.status==='investigating'&&incident.stage==='inconclusive'&&incident.attempts<3&&Date.now()-new Date(incident.updatedAt).getTime()>60000)launch(incident.id);
+  }
+  const candidates=config.prometheusUrl?metrics:metrics.filter(m=>m.service==='checkout');
+  for(const metric of candidates){
+    const alert=detect(metric);
+    consecutive.set(metric.service,alert?(consecutive.get(metric.service)||0)+1:0);
+    if(!alert||(consecutive.get(metric.service)||0)<2)continue;
+    const {incident,created}=await openIncident(metric.service,environment,alert.title,fingerprint(metric.service,environment));
+    if(created){await event('alert','Degradação detectada automaticamente',alert.title,incident.id);launch(incident.id);}
+  }
+  if(Date.now()-lastPrune>3600000){lastPrune=Date.now();await prune();}
+}
+async function commands(){
+  const command=await claimCommand();if(!command)return;
+  try{
+    if(command.kind==='inject'){
+      if(!lab||config.prometheusUrl)throw new Error('Injeção disponível apenas no laboratório local.');
+      const active=await pool.query("SELECT id FROM incidents WHERE status <> 'resolved' LIMIT 1");
+      if(active.rows.length)throw new Error('Aguarde a recuperação dos incidentes atuais antes de iniciar outra falha.');
+      await lab.inject(command.payload.scenario as Scenario);
+    }else if(command.kind==='reset'){
+      if(!lab)throw new Error('Laboratório desabilitado.');await lab.reset();
+    }else if(command.kind==='review'){
+      const id=command.payload.incidentId as string;
+      if(running.has(id))throw new Error('Investigação em andamento. Aguarde a conclusão.');
+      running.add(id);
+      try{await investigator.review(id,command.payload.approve===true);}finally{running.delete(id);}
+    }else if(command.kind==='reinvestigate')launch(command.payload.incidentId);
+    else if(command.kind==='alert'){
+      const {service,title}=command.payload;
+      const {incident,created}=await openIncident(service,'configured',title,fingerprint(service,'configured'));
+      if(created){await event('alert','Alerta recebido por webhook',title,incident.id);launch(incident.id);}
+    }else throw new Error('Comando desconhecido.');
+    await finishCommand(command.id);
+  }catch(error){
+    const message=safeError(error);await finishCommand(command.id,message);
+    await event('error','Comando não executado',message,command.payload.incidentId||null);
+  }
+}
+const heartbeat=setInterval(()=>{void setMeta('heartbeat',new Date().toISOString()).catch(()=>{});},2000);
+async function loop(){
+  while(!closing){
+    try{await monitor();for(let i=0;i<5;i++)await commands();}
+    catch(error){console.error('[monitor] '+safeError(error));await event('error','Falha temporária no monitor',safeError(error)).catch(()=>{});}
+    await new Promise(resolve=>setTimeout(resolve,config.interval));
+  }
+}
+const loopTask=loop();
+async function stop(){
+  if(closing)return;closing=true;clearInterval(heartbeat);
+  console.log('Encerrando worker...');
+  await loopTask;await Promise.allSettled([...pending]);
+  await lab?.stop();await tools.close();await setMeta('mcp',false);
+  await investigator.close();await stopTelemetry();
+  await lease.query('SELECT pg_advisory_unlock(742902)');lease.release();await pool.end();
+}
+process.once('SIGINT',()=>{void stop().then(()=>process.exit(0));});
+process.once('SIGTERM',()=>{void stop().then(()=>process.exit(0));});

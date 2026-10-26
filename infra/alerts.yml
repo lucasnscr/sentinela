@@ -1,0 +1,10 @@
+groups:
+  - name: laboratory
+    rules:
+      - alert: ServiceErrorRate
+        expr: sentinela_service_error_ratio > 0.08
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Aumento de erros no serviço {{ $labels.service }}"

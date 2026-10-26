@@ -1,0 +1,62 @@
+{
+  "name": "sentinela-incident-copilot",
+  "version": "0.1.0",
+  "description": "Copiloto ativo de incidentes que complementa o fluxo de entrega do issue-to-pr-ai com monitoramento e investigação operacional.",
+  "license": "MIT",
+  "author": "lucasnscr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucasnscr/sentinela.git"
+  },
+  "homepage": "https://github.com/lucasnscr/sentinela#readme",
+  "bugs": { "url": "https://github.com/lucasnscr/sentinela/issues" },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env.local --import tsx scripts/dev.ts",
+    "web": "next dev --hostname 127.0.0.1 --port 4320",
+    "worker": "node --env-file-if-exists=.env.local --import tsx worker/index.ts",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 4320",
+    "check": "next typegen && tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:integration": "node --env-file-if-exists=.env.local --import tsx --test tests/integration/*.test.ts",
+    "test:e2e": "node --env-file-if-exists=.env.local --import tsx scripts/e2e.ts",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:migrate": "node --env-file-if-exists=.env.local --import tsx scripts/migrate.ts",
+    "mcp": "node --env-file-if-exists=.env.local --import tsx worker/mcp.ts",
+    "report:deployment": "node --env-file-if-exists=.env.local --import tsx scripts/report-deployment.ts",
+    "test:ai": "node --env-file-if-exists=.env.local --import tsx scripts/smoke-ai.ts",
+    "test:e2e:provider": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-provider.ts"
+  },
+  "dependencies": {
+    "@langchain/core": "latest",
+    "@langchain/langgraph": "latest",
+    "@langchain/langgraph-checkpoint-postgres": "latest",
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "@opentelemetry/api": "latest",
+    "@opentelemetry/exporter-trace-otlp-http": "latest",
+    "@opentelemetry/sdk-node": "latest",
+    "dotenv": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "pg": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-markdown": "latest",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/pg": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

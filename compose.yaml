@@ -1,0 +1,29 @@
+name: sentinela-copilot
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: sentinela
+      POSTGRES_PASSWORD: sentinela_local
+      POSTGRES_DB: sentinela
+    ports:
+      - "127.0.0.1:56471:5432"
+    volumes:
+      - sentinela_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinela -d sentinela"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/alerts.yml:/etc/prometheus/alerts.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+volumes:
+  sentinela_data:

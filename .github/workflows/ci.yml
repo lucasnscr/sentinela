@@ -1,0 +1,51 @@
+name: validar sentinela
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://sentinela:sentinela_local@127.0.0.1:5432/sentinela
+      AI_MODE: rules
+      AI_PROVIDER: none
+      EMBEDDING_PROVIDER: none
+      NEXT_TELEMETRY_DISABLED: '1'
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: sentinela
+          POSTGRES_PASSWORD: sentinela_local
+          POSTGRES_DB: sentinela
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sentinela -d sentinela"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+      - run: npm run db:migrate
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npm run test:e2e:provider

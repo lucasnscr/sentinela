@@ -1,0 +1,11 @@
+name: sentinela-catalog-observability
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - "127.0.0.1:9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./recording-rules.yml:/etc/prometheus/recording-rules.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
