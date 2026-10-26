@@ -10,7 +10,7 @@ const result=(value:unknown)=>({content:[{type:'text' as const,text:JSON.stringi
 serveStdio(()=>{
   const server=new McpServer({name:'sentinela-observability',version:'0.1.0'});
   server.registerTool('get_service_metrics',{description:'Métricas observadas na janela solicitada. Leitura apenas.',inputSchema:schema},async({services,since})=>result(await getMetrics(services,bounded(since))));
-  for(const [name,kind] of [['search_logs','log'],['get_traces','trace'],['list_changes','change']] as const){
+  for(const [name,kind] of [['search_logs','log'],['get_traces','trace'],['list_changes','change'],['get_runtime_evidence','runtime']] as const){
     server.registerTool(name,{description:'Consultar evidências do tipo '+kind+' com intervalo limitado.',inputSchema:schema},async({services,since})=>result(await getEvidence(services,kind,bounded(since),24)));
   }
   server.registerTool('get_service_dependencies',{description:'Topologia conhecida dos serviços monitorados.',inputSchema:z.object({service:z.string().max(64)})},async({service})=>result(service==='checkout'?['payments','inventory']:[]));

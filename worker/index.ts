@@ -11,6 +11,7 @@ import { connectTools } from './mcp-client';
 import { createInvestigator } from './investigation';
 import { samplePrometheus } from './prometheus';
 import { startTelemetry, stopTelemetry } from './observability';
+import { createOperations } from './operations';
 
 startTelemetry();
 await migrate();
@@ -25,6 +26,7 @@ const lab=config.labEnabled?new Laboratory():null;
 if(lab)await lab.start();
 const tools=await connectTools();await setMeta('mcp',true);
 const investigator=await createInvestigator(tools,lab);
+const operations=await createOperations();
 await event('worker','Monitoramento ativo','Worker '+workerId.slice(0,8)+'; consultas a cada '+(config.interval/1000)+' segundos.');
 console.log('Sentinela worker ativo. Laboratório: '+(lab?'http://127.0.0.1:'+config.labPort:'desabilitado'));
 void indexKnowledge().then(()=>event('knowledge','Base de conhecimento pronta','Runbooks disponíveis para recuperação.')).catch(error=>event('knowledge','Busca lexical disponível',safeError(error)));
@@ -45,16 +47,23 @@ function launch(id:string,resume=false){
 const unfinished=await pool.query("SELECT id FROM incidents WHERE status='investigating' AND stage IN ('queued','collecting','analyzing','checking','failed')");
 for(const row of unfinished.rows)launch(row.id,true);
 let lastPrune=0;
+let lastCollectionWarning=0;
+let latestMetrics:Metric[]=[];
 async function monitor(){
   await setMeta('heartbeat',new Date().toISOString());
-  const metrics=config.prometheusUrl?await samplePrometheus():lab?await lab.sample():[];
+  let metrics:Metric[]=[];
+  try{metrics=config.prometheusUrl?await samplePrometheus():lab?await lab.sample():[];}
+  catch{
+    if(Date.now()-lastCollectionWarning>30000){lastCollectionWarning=Date.now();await event('error','Coleta de métricas indisponível','Os comandos e os conectores operacionais continuam independentes. Confira a fonte de telemetria.');}
+  }
+  latestMetrics=metrics;
   const environment=config.prometheusUrl?'configured':'laboratory';
   const active=await pool.query("SELECT * FROM incidents WHERE status <> 'resolved'");
   for(const row of active.rows){
     if(row.stage==='queued'&&!running.has(row.id))launch(row.id);
     const incident=incidentFromRow(row);
     const metric=metrics.find(m=>m.service===incident.service);
-    if(metric&&isHealthy(metric)){
+    if(!incident.environment.startsWith('runtime:')&&metric&&isHealthy(metric)){
       const count=(healthy.get(incident.id)||0)+1;healthy.set(incident.id,count);
       if(count>=3&&!running.has(incident.id))await closeIncident(incident.id);
     }else healthy.set(incident.id,0);
@@ -85,7 +94,10 @@ async function commands(){
       if(running.has(id))throw new Error('Investigação em andamento. Aguarde a conclusão.');
       running.add(id);
       try{await investigator.review(id,command.payload.approve===true);}finally{running.delete(id);}
-    }else if(command.kind==='reinvestigate')launch(command.payload.incidentId);
+    }else if(command.kind==='operation_plan')await operations.plan(command.payload as {targetId:string;action:'restart'|'scale'|'start';replicas?:number;requestId:string});
+    else if(command.kind==='operation_review')await operations.review(command.payload.planId,command.payload.approve===true);
+    else if(command.kind==='operation_reconcile')await operations.reconcile(command.payload.planId,command.payload.note);
+    else if(command.kind==='reinvestigate')launch(command.payload.incidentId);
     else if(command.kind==='alert'){
       const {service,title}=command.payload;
       const {incident,created}=await openIncident(service,'configured',title,fingerprint(service,'configured'));
@@ -106,10 +118,17 @@ async function loop(){
   }
 }
 const loopTask=loop();
+const operationsTask=(async()=>{
+  while(!closing){
+    try{await operations.tick(latestMetrics.filter(metric=>Date.now()-new Date(metric.at).getTime()<20000));}
+    catch{console.error('[operations] Não foi possível concluir a coleta operacional.');}
+    await new Promise(resolve=>setTimeout(resolve,config.interval));
+  }
+})();
 async function stop(){
   if(closing)return;closing=true;clearInterval(heartbeat);
   console.log('Encerrando worker...');
-  await loopTask;await Promise.allSettled([...pending]);
+  await Promise.all([loopTask,operationsTask]);await Promise.allSettled([...pending]);
   await lab?.stop();await tools.close();await setMeta('mcp',false);
   await investigator.close();await stopTelemetry();
   await lease.query('SELECT pg_advisory_unlock(742902)');lease.release();await pool.end();

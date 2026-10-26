@@ -59,3 +59,14 @@ CREATE TABLE IF NOT EXISTS actions (
   executed_at timestamptz, UNIQUE(incident_id,kind)
 );
 CREATE TABLE IF NOT EXISTS metadata (key text PRIMARY KEY, value jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS runtime_observations (
+  target_id text PRIMARY KEY, payload jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS operation_plans (
+  id text PRIMARY KEY, target_id text NOT NULL, state text NOT NULL,
+  request_id text NOT NULL, payload jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(target_id,request_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS operation_plans_one_active ON operation_plans(target_id)
+  WHERE state IN ('pending','executing','verifying','uncertain');

@@ -68,6 +68,7 @@ try{
   const base='http://127.0.0.1:'+webPort;
   const env={...process.env,DATABASE_URL:databaseUrl.toString(),PORT:String(webPort),APP_URL:base,APP_ORIGINS:base,
     LAB_ENABLED:'true',LAB_BASE_PORT:String(labPort),MONITOR_INTERVAL_MS:'1000',PROMETHEUS_URL:'',
+    OPERATIONS_ENABLED:'false',OPERATIONS_EXECUTION_ENABLED:'false',OPERATIONS_CONFIG_FILE:'',
     AI_MODE:'model',AI_PROVIDER:'ollama',AI_MODEL:model,AI_BASE_URL:'http://127.0.0.1:'+providerPort,
     AI_API_KEY:'',AI_API_KEY_ENV:'',EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'contract-embedding',
     EMBEDDING_BASE_URL:'http://127.0.0.1:'+providerPort,EMBEDDING_DIMENSIONS:'3',EMBEDDING_API_KEY:'',EMBEDDING_API_KEY_ENV:'',
