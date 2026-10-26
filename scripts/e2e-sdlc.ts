@@ -50,10 +50,10 @@ try{
   const require=createRequire(import.meta.url),authorize=require(path.join(catalog.checkout,'.github/scripts/authorize.cjs')),prepare=require(path.join(catalog.checkout,'.github/scripts/prepare-implementation.cjs'));
   const issue=github.issues[0],outputs:Record<string,string>={};let approved=false;
   const apiGate={rest:{repos:{getCollaboratorPermissionLevel:async()=>({data:{permission:'write'}}),getCommit:async()=>({data:{sha:catalog!.badSha}})},issues:{get:async()=>({data:{...issue,labels:approved?[{name:'ai:ready'}]:[]}})}}};
-  const context={repo:{owner:'lucasnscr',repo:'issue-to-pr-ai'},actor:'contract-maintainer',runId:'contract',payload:{comment:{body:'/oc',user:{type:'User',login:'contract-maintainer'}},issue:{number:issue.number},repository:{default_branch:'main'}}};
+  const context={repo:{owner:'lucasnscr',repo:'issue-to-pr-ai'},actor:'contract-maintainer',runId:'contract',payload:{comment:{body:'@claude',user:{type:'User',login:'contract-maintainer'}},issue:{number:issue.number},repository:{default_branch:'main'}}};
   const core={setOutput:(key:string,value:string)=>{outputs[key]=value;},notice:()=>{}};
   await authorize({github:apiGate,context,core});assert.equal(outputs.agent,'');
-  approved=true;await authorize({github:apiGate,context,core});assert.equal(outputs.agent,'opencode');
+  approved=true;await authorize({github:apiGate,context,core});assert.equal(outputs.agent,'claude');
   const previous={RUNNER_TEMP:process.env.RUNNER_TEMP,CHECKOUT_SHA:process.env.CHECKOUT_SHA};Object.assign(process.env,{RUNNER_TEMP:directory,CHECKOUT_SHA:catalog.badSha});
   try{await prepare({github:apiGate,context,core});}finally{for(const [key,value]of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
   assert.match(await readFile(outputs.task,'utf8'),/untrusted_issue/);
