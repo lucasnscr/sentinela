@@ -6,7 +6,7 @@ Executada em 26 de outubro de 2026 no checkout independente do Sentinela.
 | --- | --- |
 | Instalação pelo lockfile (`npm ci`) | Aprovada, sem copiar arquivos de ambiente |
 | Tipagem (`npm run check`) | Aprovada; gera tipos do Next.js em checkout novo |
-| Testes unitários e hook (`npm test`) | 69 aprovados |
+| Testes unitários e hook (`npm test`) | 70 aprovados |
 | PostgreSQL, LangGraph, MCP, ingestão, ajustes e SDLC (`npm run test:integration`) | 15 aprovados em banco temporário inicialmente vazio |
 | Build de produção (`npm run build`) | Aprovado |
 | Fluxo completo (`npm run test:e2e:provider`) | Três cenários aprovados com protocolo Ollama controlado |
@@ -28,7 +28,7 @@ O banco temporário foi criado e removido pelo processo de validação, sem alte
 
 ## Limites da validação
 
-O teste SDLC executou os dois contratos idênticos com o checkout `264757216119597b69abd2aef72a49e33264e9c8` de issue-to-pr-ai. Catálogo Java, PostgreSQL, Prometheus, HTTP, worker, MCP, wrapper governado, teste de regressão vermelho/verde e troca de containers foram reais. GitHub, resposta do agente e aprovação de merge foram controlados. A interface mostrou um caso com três amostras saudáveis e outro revertido sem marcar correção verificada. O [guia do ciclo](sdlc-integration.md) documenta configuração e execução reproduzível.
+O teste SDLC executou os dois contratos idênticos com o checkout `1d0e78621d97e430ce372117f8892138abf653a6` de issue-to-pr-ai. Catálogo Java, PostgreSQL, Prometheus, HTTP, worker, MCP, wrapper governado, teste de regressão vermelho/verde e troca de containers foram reais. GitHub, resposta do agente e aprovação de merge foram controlados. A interface mostrou um caso com três amostras saudáveis e outro revertido sem marcar correção verificada. O [guia do ciclo](sdlc-integration.md) documenta configuração e execução reproduzível.
 
 O hook foi instalado nos dois checkouts e também recusou um commit real de teste. As verificações cobrem exatamente 20.000 bytes, excesso de um byte, UTF-8, divergência entre índice e working tree, lockfiles, codegen e atributos gerados ainda não staged. Nenhum arquivo alterado desta entrega excede o limite.
 

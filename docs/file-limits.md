@@ -1,6 +1,6 @@
 # Limite dos arquivos no commit
 
-O hook local verifica somente arquivos adicionados, modificados ou renomeados no índice do Git. Usa o blob staged, mesmo quando o arquivo de trabalho tem outro conteúdo. O limite é de 20.000 bytes: tokens estimados = bytes / 4, com máximo de 5.000 tokens por arquivo. Exatamente 20.000 bytes são permitidos.
+O hook local verifica somente arquivos adicionados, modificados, renomeados ou com tipo alterado no índice do Git. Usa o blob staged, mesmo quando o arquivo de trabalho tem outro conteúdo. O limite é de 20.000 bytes: tokens estimados = bytes / 4, com máximo de 5.000 tokens por arquivo. Exatamente 20.000 bytes são permitidos.
 
 Instale em cada checkout:
 

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync,spawnSync} from 'node:child_process';
-import {mkdtempSync,writeFileSync,readFileSync,rmSync,mkdirSync} from 'node:fs';
+import {mkdtempSync,writeFileSync,readFileSync,rmSync,mkdirSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 const checker=path.resolve('scripts/check-staged-file-size.mjs');
@@ -42,4 +42,10 @@ test('installed hook rejects an actual commit of an oversized staged file',()=>f
   write('source.ts','x'.repeat(20001));git('add','.');
   const attempt=spawnSync('git',['commit','-m','must be blocked'],{cwd:root,encoding:'utf8'});
   assert.notEqual(attempt.status,0);assert.match(attempt.stderr,/Commit blocked/);assert.match(attempt.stderr,/Split each file/);
+}));
+
+test('a staged type change from symlink to authored source cannot bypass the limit',()=>fixture(({git,write,check})=>{
+  const root=git('rev-parse','--show-toplevel').toString().trim();symlinkSync('generated-target',path.join(root,'source.ts'));
+  git('add','source.ts');git('commit','-qm','symlink baseline');rmSync(path.join(root,'source.ts'));
+  write('source.ts','x'.repeat(20001));git('add','source.ts');assert.equal(check().status,1);
 }));

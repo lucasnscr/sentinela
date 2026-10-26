@@ -6,7 +6,7 @@ const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:16*1024*
 const lockfiles=new Set(['package-lock.json','npm-shrinkwrap.json','yarn.lock','pnpm-lock.yaml','bun.lock','bun.lockb','Cargo.lock','Gemfile.lock','poetry.lock','uv.lock','Pipfile.lock','composer.lock','packages.lock.json']);
 export function checkStagedFiles(){
   const root=git('rev-parse','--show-toplevel').trim();process.chdir(root);
-  const paths=git('diff','--cached','--name-only','--diff-filter=ACMR','-z').split('\0').filter(Boolean);
+  const paths=git('diff','--cached','--name-only','--diff-filter=ACMRT','-z').split('\0').filter(Boolean);
   const failures=[];
   for(const path of paths){
     const name=basename(path);
