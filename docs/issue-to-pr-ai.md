@@ -82,7 +82,7 @@ npm run dev
 
 Diagnóstico e embeddings são independentes e aceitam os [provedores configuráveis](ai-providers.md). O fluxo funciona com análise por regras sem chave comercial. Para uma investigação com mais contexto, envie logs e traces pelo contrato de `POST /api/telemetry` descrito no README. Prometheus e eventos de deploy, sozinhos, podem resultar em diagnóstico inconclusivo.
 
-A topologia de dependências do laboratório é específica de checkout/payments/inventory; o catálogo externo não ganha descoberta automática de dependências. Mitigações externas são consultivas.
+A topologia de dependências do laboratório é específica de checkout/payments/inventory; o catálogo externo não ganha descoberta automática de dependências. Para observar e ajustar seu ambiente Kubernetes ou Azure Functions, configure também um [conector operacional](operations.md). Sem esse conector, as recomendações externas são consultivas.
 
 ## Registrar o deploy
 

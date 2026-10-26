@@ -1,6 +1,13 @@
 import type { Diagnosis, Evidence, Mitigation } from './domain';
 
 export function evidenceDiagnosis(evidence:Evidence[],service:string,warning:string|null=null):Diagnosis{
+  const runtime = evidence.find(item => item.kind === 'runtime' && item.service === service && item.data.phase === 'degraded' && Array.isArray(item.data.issues) && item.data.issues.length);
+  if(runtime){
+    const issue = (runtime.data.issues as Array<{code:string;message:string}>)[0];
+    return {summary:'O ambiente de execução confirmou uma falha operacional.',cause:issue.message,confidence:'probable',
+      hypotheses:[{title:issue.code,explanation:'A condição foi observada no provedor. A causa anterior a essa condição ainda pode exigir logs e contexto da aplicação.',supportingEvidence:[runtime.id],contradictingEvidence:[],nextCheck:'Revisar o estado e os planos na área Operação; confirmar a recuperação após qualquer ajuste.'}],
+      action:'observe',actionService:service,actionReason:'Os ajustes externos possuem planos e revisão próprios na área Operação.',missingInformation:['Confirmar a causa anterior à condição e a recuperação da aplicação.'],mode:'rules',warning};
+  }
   const logs=evidence.filter(e=>e.kind==='log'),changes=evidence.filter(e=>e.kind==='change');
   const candidates:Array<{code:string;change:string;cause:string;action:Mitigation;target:string}>=[
     {code:'POOL_ACQUIRE_TIMEOUT',change:'pool_limit',cause:'Esgotamento do pool de conexões em payments após alteração de configuração.',action:'restore_pool',target:'payments'},
@@ -27,6 +34,9 @@ export function validateDiagnosis(diagnosis:Diagnosis,evidence:Evidence[],servic
     return {...h,supportingEvidence:h.supportingEvidence.filter(id=>ids.has(id)),contradictingEvidence:h.contradictingEvidence.filter(id=>ids.has(id))};
   });
   const guard=evidenceDiagnosis(evidence,service);
+  if(!invalid&&diagnosis.action==='observe'&&guard.confidence==='probable'&&guard.hypotheses.some(h=>h.supportingEvidence.some(id=>evidence.some(e=>e.id===id&&e.kind==='runtime')))){
+    return {...guard,warning:diagnosis.warning};
+  }
   const allowed=diagnosis.action==='observe'||(diagnosis.action===guard.action&&diagnosis.actionService===guard.actionService);
   if(invalid||!hypotheses.some(h=>h.supportingEvidence.length>=2&&h.supportingEvidence.some(id=>evidence.some(e=>e.id===id&&['log','trace'].includes(e.kind)))&&new Set(h.supportingEvidence.map(id=>evidence.find(e=>e.id===id)?.kind)).size>=2))return {...diagnosis,hypotheses,confidence:'insufficient',action:'observe',actionReason:'As referências ainda não sustentam uma ação.',missingInformation:[...diagnosis.missingInformation,'Evidências válidas e independentes para a hipótese principal.']};
   return {...diagnosis,hypotheses,action:allowed?diagnosis.action:'observe',actionReason:allowed?diagnosis.actionReason:'A ação proposta não é sustentada pelo mecanismo observado.'};

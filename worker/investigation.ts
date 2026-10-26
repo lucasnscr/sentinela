@@ -39,11 +39,11 @@ export async function createInvestigator(tools:Tools,lab:Laboratory|null){
       const services=[...new Set([incident.service,...dependencies])];
       const since=await incidentEvidenceSince(incident);
       const args={services,since};
-      const [metrics,logs,traces,changes]=await Promise.all([
+      const [metrics,logs,traces,changes,runtime]=await Promise.all([
         tools.call<Metric[]>('get_service_metrics',args),tools.call<Evidence[]>('search_logs',args),
-        tools.call<Evidence[]>('get_traces',args),tools.call<Evidence[]>('list_changes',args)
+        tools.call<Evidence[]>('get_traces',args),tools.call<Evidence[]>('list_changes',args),tools.call<Evidence[]>('get_runtime_evidence',args)
       ]);
-      const evidence:Evidence[]=[...logs,...traces,...changes];
+      const evidence:Evidence[]=[...logs,...traces,...changes,...runtime];
       for(const service of services){
         const samples=metrics.filter(m=>m.service===service);
         const latest=samples.at(-1);

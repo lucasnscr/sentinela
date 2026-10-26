@@ -1,0 +1,25 @@
+{
+  "targets": [
+    {
+      "id": "catalog-kubernetes",
+      "runtime": "kubernetes",
+      "service": "catalog-api",
+      "context": "sentinela-demo",
+      "namespace": "sentinela-demo",
+      "deployment": "catalog-api",
+      "actions": ["restart", "scale"],
+      "minReplicas": 1,
+      "maxReplicas": 4
+    },
+    {
+      "id": "orders-azure-functions",
+      "runtime": "azure-functions",
+      "service": "orders-functions",
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/sentinela-demo/providers/Microsoft.Web/sites/sentinela-functions-demo",
+      "expectedRunning": true,
+      "healthUrl": "https://sentinela-functions.example.invalid/api/health",
+      "healthKeyEnv": "ORDERS_HEALTHCHECK_KEY",
+      "actions": ["start", "restart"]
+    }
+  ]
+}

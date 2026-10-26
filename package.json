@@ -31,7 +31,8 @@
     "mcp": "node --env-file-if-exists=.env.local --import tsx worker/mcp.ts",
     "report:deployment": "node --env-file-if-exists=.env.local --import tsx scripts/report-deployment.ts",
     "test:ai": "node --env-file-if-exists=.env.local --import tsx scripts/smoke-ai.ts",
-    "test:e2e:provider": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-provider.ts"
+    "test:e2e:provider": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-provider.ts",
+    "test:e2e:operations": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-operations.ts"
   },
   "dependencies": {
     "@langchain/core": "latest",

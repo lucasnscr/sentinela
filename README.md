@@ -1,6 +1,8 @@
-# Sentinela: copiloto ativo de incidentes
+# Sentinela: monitoramento e ajustes de operação
 
 Aplicação de referência com Next.js, TypeScript, LangGraph, MCP TypeScript v2, PostgreSQL/pgvector e provedores de IA intercambiáveis. Um worker acompanha a operação independentemente do navegador, detecta degradações e investiga a causa provável com evidências rastreáveis.
+
+Além dos sinais da aplicação, conectores observam Deployments no Kubernetes e Function Apps no Azure. A área **Operação** permite propor reinício, ajuste de réplicas ou início de uma Function App, com políticas por alvo, revisão, auditoria e verificação do resultado. Consulte o [guia de monitoramento e ajustes](docs/operations.md). Nenhum acesso externo é habilitado por padrão.
 
 O Sentinela complementa o [issue-to-pr-ai](https://github.com/lucasnscr/issue-to-pr-ai): o projeto de entrega organiza a issue, a implementação, os testes e a revisão; o Sentinela acompanha a aplicação depois do deploy. Incidentes e post-mortems fornecem evidências para a próxima issue, mantendo a decisão de mudança com o mantenedor.
 
@@ -147,7 +149,7 @@ O comando `npm run report:deployment` envia um evento de alteração com reposit
 
 POST /api/alerts recebe payloads Alertmanager com alerts[].labels.service e status=firing. Configure ALERT_WEBHOOK_TOKEN e um proxy que envie o Bearer correspondente. Alertas resolved recebidos não encerram incidentes sem confirmação nas métricas. Webhook sem token configurado fica desabilitado.
 
-Mitigações externas não estão implementadas: incidentes do ambiente configurado permanecem em investigação, com recomendações consultivas. A revisão executável é restrita aos três procedimentos do laboratório.
+Telemetria externa, por si só, gera recomendações consultivas. Para executar ajustes em Kubernetes ou Azure Functions, configure um [conector operacional](docs/operations.md), seus alvos e permissões. Os planos externos têm revisão e autorização próprias; os três procedimentos do laboratório continuam isolados.
 
 Para observar as métricas do laboratório no Prometheus:
 
@@ -173,6 +175,10 @@ O E2E ativa e resolve os três cenários, confere referências, repete a revisã
     npm run test:e2e:provider
 
 Executa os três cenários com um servidor HTTP que simula o protocolo Ollama e embeddings de três dimensões. O teste inicia seus próprios processos e usa um banco temporário, sem credenciais externas e sem modificar o histórico local. Requer permissão para criar um banco no PostgreSQL de desenvolvimento e uma instância de next dev livre neste checkout. Não utiliza um modelo real.
+
+    npm run test:e2e:operations
+
+Inicia web e worker em banco temporário, com CLIs controladas de Kubernetes e Azure Functions. Verifica incidentes, proposta, token, aprovação idempotente, ajuste e recuperação sem acessar contas ou clusters reais. Use `-- --preview` para inspecionar a interface de teste; encerre o processo para remover a prévia e o banco temporário.
 
     npm run test:e2e -- --one
 

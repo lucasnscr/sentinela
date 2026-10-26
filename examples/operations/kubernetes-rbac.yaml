@@ -1,0 +1,66 @@
+# Review names and namespace before applying. This does not deploy the worker.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sentinela-operator
+  namespace: sentinela-demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sentinela-observer
+  namespace: sentinela-demo
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [catalog-api]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [list]
+  - apiGroups: ['']
+    resources: [pods, events]
+    verbs: [list]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sentinela-observer
+  namespace: sentinela-demo
+subjects:
+  - kind: ServiceAccount
+    name: sentinela-operator
+    namespace: sentinela-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: sentinela-observer
+---
+# Optional execution role: do not apply these final two objects for observation only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sentinela-adjuster
+  namespace: sentinela-demo
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [catalog-api]
+    verbs: [patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sentinela-adjuster
+  namespace: sentinela-demo
+subjects:
+  - kind: ServiceAccount
+    name: sentinela-operator
+    namespace: sentinela-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: sentinela-adjuster

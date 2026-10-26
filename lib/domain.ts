@@ -1,10 +1,11 @@
 import type { AiConnectionStatus } from './ai/types';
+import type { OperationsSnapshot } from './operations/types';
 
 export type ServiceName = string;
 export type IncidentStatus = 'investigating' | 'awaiting_review' | 'verifying' | 'resolved';
 export type Scenario = 'pool_exhaustion' | 'dependency_latency' | 'bad_deployment';
 export type Mitigation = 'restore_pool' | 'disable_latency' | 'rollback' | 'observe';
-export type EvidenceKind = 'metric' | 'log' | 'trace' | 'change' | 'runbook' | 'dependency';
+export type EvidenceKind = 'metric' | 'log' | 'trace' | 'change' | 'runbook' | 'dependency' | 'runtime';
 export interface Metric {
   service: string; at: string; errorRate: number; p95: number; rpm: number;
   saturation: number; requests: number; source: 'laboratory' | 'prometheus';
@@ -38,6 +39,7 @@ export interface Runbook {
   embedding?: number[] | null; score?: number; searchMode?: string;
 }
 export interface Snapshot {
+  operations: OperationsSnapshot;
   incidents: Incident[]; metrics: Metric[]; events: TimelineEvent[];
   worker: { heartbeat: string | null; mcp: boolean; ai: string; lastAiError: string | null; labScenario: Scenario | null; labEnabled: boolean; workerId: string | null };
   connections: { database: boolean; diagnosis: AiConnectionStatus; embedding: AiConnectionStatus; source: string };

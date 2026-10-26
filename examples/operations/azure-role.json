@@ -1,0 +1,16 @@
+{
+  "Name": "Sentinela Function App operator",
+  "IsCustom": true,
+  "Description": "Leitura, início e reinício de Function Apps explicitamente autorizadas.",
+  "Actions": [
+    "Microsoft.Web/sites/read",
+    "Microsoft.Web/sites/start/action",
+    "Microsoft.Web/sites/restart/action"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/sentinela-demo"
+  ]
+}

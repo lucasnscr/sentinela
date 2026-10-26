@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { config } from './config';
 import { aiConnectionStatus } from './ai';
+import { operationsSnapshot } from './operations/store';
 import type { Diagnosis, Evidence, Incident, IncidentStatus, Metric, Runbook, Snapshot, TimelineEvent } from './domain';
 
 const globalPg = globalThis as typeof globalThis & { sentinelPool?: pg.Pool; sentinelMigration?: Promise<void> };
@@ -75,8 +76,8 @@ export async function updateIncident(id:string,patch:Partial<{status:IncidentSta
   const values=entries.map(([k,v])=>k==='evidence'||k==='diagnosis'?JSON.stringify(v):v);
   await pool.query('UPDATE incidents SET '+entries.map(([k],i)=>names[k]+'=$'+(i+2)).join(',')+',updated_at=now() WHERE id=$1',[id,...values]);
 }
-export async function closeIncident(id:string) {
-  const result=await pool.query("UPDATE incidents SET status='resolved',stage='complete',resolved_at=now(),updated_at=now() WHERE id=$1 AND status <> 'resolved' RETURNING id",[id]);
+export async function closeIncident(id:string,skipRunning=false) {
+  const result=await pool.query("UPDATE incidents SET status='resolved',stage='complete',resolved_at=now(),updated_at=now() WHERE id=$1 AND status <> 'resolved' AND ($2::boolean=false OR stage NOT IN ('collecting','analyzing','checking')) RETURNING id",[id,skipRunning]);
   if(result.rowCount)await event('recovery','Recuperação verificada','Três janelas consecutivas sem degradação.',id);
 }
 export async function enqueue(kind:string,payload:unknown,idempotencyKey:string|null=null) {
@@ -110,11 +111,13 @@ export async function getSnapshot():Promise<Snapshot> {
     aiConnectionStatus('diagnosis'),aiConnectionStatus('embedding')
   ]);
   const meta=Object.fromEntries(metadata.rows.map(r=>[r.key,r.value]));
+  const operations=await operationsSnapshot();
   return {
+    operations,
     incidents:incidents.rows.map(incidentFromRow), metrics:metrics.rows.map(metricFromRow),
     events:events.rows.map(r=>({id:r.id,incidentId:r.incident_id,at:iso(r.at),kind:r.kind,title:r.title,detail:r.detail} as TimelineEvent)),
     worker:{heartbeat:meta.heartbeat??null,mcp:meta.mcp===true,ai:meta.aiMode??config.aiMode,lastAiError:diagnosis.error,labScenario:meta.labScenario??null,labEnabled:config.labEnabled,workerId:meta.workerId??null},
-    connections:{database:true,diagnosis,embedding,source:config.prometheusUrl?'prometheus':'laboratory'},
+    connections:{database:true,diagnosis,embedding,source:config.prometheusUrl?'prometheus':config.labEnabled?'laboratory':operations.enabled?'runtime':'unconfigured'},
     runbooksCount:count.rows[0].count,now:new Date().toISOString()
   };
 }
