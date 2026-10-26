@@ -86,4 +86,6 @@ Ainda há evolução a fazer: transformar incidentes reais em datasets de avalia
 
 A próxima decisão de adoção é escolher um serviço e um ambiente, definir sinais de recuperação e ensaiar a falha e a reversão. Os resultados desse ambiente devem orientar qualquer aumento de autonomia. No projeto apresentado aqui, cada passagem do ciclo deixa um artefato ou um evento que permite conferir o que foi autorizado, executado e observado.
 
+As correções desta auditoria estão nas PRs [Sentinela #4](https://github.com/lucasnscr/sentinela/pull/4) e [issue-to-pr-ai #54](https://github.com/lucasnscr/issue-to-pr-ai/pull/54), abertas em rascunho para revisão do mantenedor. O resultado dos testes descreve essas revisões; a adoção na branch principal depende da decisão de integração.
+
 *Nota de acesso: o issue-to-pr-ai é público; o Sentinela estava privado durante esta validação. Os links respeitam as permissões de cada repositório. Os resultados deste artigo correspondem à referência e ao teste controlado descritos, realizados em 26 de outubro de 2026.*

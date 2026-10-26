@@ -39,6 +39,8 @@ Seis testes de frescor/prazo e o teste de callback perdido falharam antes das co
 
 Para repetir, siga o [guia de integração](sdlc-integration.md). O relatório de CI deve ser conferido para os commits efetivamente avaliados. O artigo é uma descrição dessa referência e de seus testes, sem promessa de ausência de defeitos.
 
+Correções em revisão: [Sentinela #4](https://github.com/lucasnscr/sentinela/pull/4) e [issue-to-pr-ai #54](https://github.com/lucasnscr/issue-to-pr-ai/pull/54). O teste local ampliado completou as sete etapas, incluindo callback perdido e telemetria saudável congelada.
+
 ## Referências e interpretação
 
 O [playbook da Anthropic](https://claude.com/resources/articles/the-ai-native-sdlc-playbook) sugere conectar fases por artefatos e gates; usamos essa lente para mapear entradas, saídas e decisões. O [ADLC da LangChain](https://www.langchain.com/blog/the-agent-development-lifecycle) destaca testar e observar o comportamento dos agentes; isso motivou distinguir testes do catálogo e avaliação do agente. A [análise da Endor Labs](https://www.endorlabs.com/learn/what-is-the-ai-native-sdlc) inclui os riscos das ações dos agentes e do software produzido; por isso limites de ferramentas e supply chain aparecem separadamente na auditoria.
