@@ -70,3 +70,12 @@ CREATE TABLE IF NOT EXISTS operation_plans (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS operation_plans_one_active ON operation_plans(target_id)
   WHERE state IN ('pending','executing','verifying','uncertain');
+CREATE TABLE IF NOT EXISTS remediation_cases (
+  id text PRIMARY KEY, incident_id text NOT NULL UNIQUE REFERENCES incidents(id),
+  state text NOT NULL, payload jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS sdlc_receipts (
+  id text PRIMARY KEY, case_id text NOT NULL REFERENCES remediation_cases(id),
+  payload jsonb NOT NULL, accepted_at timestamptz NOT NULL DEFAULT now()
+);

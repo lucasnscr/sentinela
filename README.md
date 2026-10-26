@@ -6,6 +6,8 @@ Além dos sinais da aplicação, conectores observam Deployments no Kubernetes e
 
 O Sentinela complementa o [issue-to-pr-ai](https://github.com/lucasnscr/issue-to-pr-ai): o projeto de entrega organiza a issue, a implementação, os testes e a revisão; o Sentinela acompanha a aplicação depois do deploy. Incidentes e post-mortems fornecem evidências para a próxima issue, mantendo a decisão de mudança com o mantenedor.
 
+A [integração do ciclo SDLC](docs/sdlc-integration.md) permite publicar uma issue revisada, receber a PR após CI e verificar o deploy corretivo por novas métricas. Acesse `/sdlc` para acompanhar os casos. Inclui teste conjunto com catálogo Java/PostgreSQL, Prometheus, worker e rollback reais, usando GitHub e agente controlados.
+
 ```mermaid
 flowchart LR
   A[Issue e critérios] --> B[issue-to-pr-ai: implementação e revisão]
@@ -21,6 +23,8 @@ Consulte o [guia de integração com o catálogo Java/Spring](docs/issue-to-pr-a
 ## Executar localmente
 
 Requisitos: Node.js 24+, npm e Docker com Compose.
+
+Instale o [hook de limite por arquivo](docs/file-limits.md) neste checkout com `node scripts/install-git-hooks.mjs`. Ele verifica somente o conteúdo staged e bloqueia arquivos mantidos acima de 5.000 tokens estimados.
 
     git clone https://github.com/lucasnscr/sentinela.git
     cd sentinela

@@ -38,7 +38,7 @@ try{
     {id:'azure-contract-test',runtime:'azure-functions',service:'azure-contract-test',resourceId,expectedRunning:true,healthUrl:'http://127.0.0.1:'+healthPort+'/health',actions:['start','restart']},
   ]}));
   const env={...process.env,DATABASE_URL:databaseUrl.toString(),PORT:String(webPort),APP_ORIGINS:base,
-    LAB_ENABLED:'false',PROMETHEUS_URL:'http://127.0.0.1:1',AI_MODE:'rules',AI_PROVIDER:'none',EMBEDDING_PROVIDER:'none',
+    LAB_ENABLED:'false',PROMETHEUS_URL:'http://127.0.0.1:1',AI_MODE:'rules',AI_PROVIDER:'none',EMBEDDING_PROVIDER:'none',SDLC_ENABLED:'false',
     OPERATIONS_ENABLED:'true',OPERATIONS_EXECUTION_ENABLED:'true',OPERATIONS_CONFIG_FILE:configFile,OPERATIONS_API_TOKEN:token,OPERATIONS_INTERVAL_MS:'5000',OPERATIONS_COOLDOWN_MS:'30000',
     KUBECTL_BIN:path.join(directory,'kubectl'),AZ_CLI_BIN:path.join(directory,'az'),SENTINELA_TEST_STATE_FILE:stateFile,
     OPENAI_API_KEY:'',ANTHROPIC_API_KEY:'',GEMINI_API_KEY:''};

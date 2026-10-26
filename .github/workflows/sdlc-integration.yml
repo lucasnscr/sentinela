@@ -1,0 +1,70 @@
+name: validar ciclo integrado SDLC
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sdlc-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      DATABASE_URL: postgresql://sentinela:sentinela_local@127.0.0.1:5432/sentinela
+      AI_PROVIDER: none
+      EMBEDDING_PROVIDER: none
+      SDLC_ENABLED: 'false'
+      OPERATIONS_ENABLED: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
+      ISSUE_TO_PR_AI_DIR: ${{ github.workspace }}/peer-issue-to-pr-ai
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: sentinela
+          POSTGRES_PASSWORD: sentinela_local
+          POSTGRES_DB: sentinela
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U sentinela -d sentinela"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - id: peer
+        name: Read the pinned peer commit
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const peer=JSON.parse(fs.readFileSync('config/sdlc-peer.json','utf8'));
+          if(peer.repository!=='lucasnscr/issue-to-pr-ai'||!/^[a-f0-9]{40}$/.test(peer.ref))throw new Error('Invalid peer reference');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,'sha='+peer.ref+'\n');
+          JS
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: lucasnscr/issue-to-pr-ai
+          ref: ${{ steps.peer.outputs.sha }}
+          path: peer-issue-to-pr-ai
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:e2e:sdlc
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: sdlc-integration-report
+          path: test-results/sdlc-integration-report.json
+          if-no-files-found: ignore
+          retention-days: 14

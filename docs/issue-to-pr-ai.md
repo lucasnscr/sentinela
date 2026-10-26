@@ -2,7 +2,7 @@
 
 O [issue-to-pr-ai](https://github.com/lucasnscr/issue-to-pr-ai) conduz a mudança: issue, critérios, implementação, testes reais, revisão e decisão do mantenedor. O Sentinela acompanha a operação da aplicação entregue, detecta degradação e reúne evidências para orientar a próxima mudança.
 
-O exemplo usa `apps/catalog-api`, laboratório Java/Spring/PostgreSQL do projeto. Na revisão de referência (`8163f6fc5750bb3282b93ccb421d677a70e23d8e`), o catálogo expõe health/info, mas ainda não inclui o registry nem o endpoint Prometheus. Os arquivos abaixo preparam essa integração; este repositório não altera automaticamente o catálogo nem cria issues ou PRs nele.
+O exemplo usa `apps/catalog-api`, laboratório Java/Spring/PostgreSQL do projeto. A [integração SDLC](sdlc-integration.md) acrescenta instrumentação, publicação revisada de issues e recibos de PR/deploy. O patch deste guia é para a revisão anterior (`8163f6fc5750bb3282b93ccb421d677a70e23d8e`), que ainda não tinha registry/endpoint Prometheus; não o reaplique em uma versão já instrumentada.
 
 ## Fluxo entre os projetos
 
@@ -18,7 +18,7 @@ O deploy próximo de uma falha é uma pista. O diagnóstico deve combinar essa a
 
 ## Preparar o catálogo
 
-Mantenha os dois checkouts separados, por exemplo `Documents/issue-to-pr-ai` e `Documents/sentinela`. No checkout de `issue-to-pr-ai`, revise e aplique o exemplo:
+Mantenha os dois checkouts separados, por exemplo `Documents/issue-to-pr-ai` e `Documents/sentinela`. Na versão com integração SDLC, inicie o catálogo e consulte `/actuator/prometheus`. Somente para a versão anterior ainda não instrumentada, revise e aplique o patch antes de iniciar:
 
 ```sh
 git apply --check ../sentinela/examples/issue-to-pr-ai/catalog-observability.patch
