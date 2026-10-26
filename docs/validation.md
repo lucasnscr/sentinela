@@ -6,7 +6,7 @@ Executada em 26 de outubro de 2026 no checkout independente do Sentinela.
 | --- | --- |
 | Instalação pelo lockfile (`npm ci`) | Aprovada, sem copiar arquivos de ambiente |
 | Tipagem (`npm run check`) | Aprovada; gera tipos do Next.js em checkout novo |
-| Testes unitários e hook (`npm test`) | 73 aprovados |
+| Testes unitários e hook (`npm test`) | 74 aprovados |
 | PostgreSQL, LangGraph, MCP, ingestão, ajustes e SDLC (`npm run test:integration`) | 21 aprovados em banco temporário inicialmente vazio |
 | Build de produção (`npm run build`) | Aprovado |
 | Fluxo completo (`npm run test:e2e:provider`) | Três cenários aprovados com protocolo Ollama controlado |

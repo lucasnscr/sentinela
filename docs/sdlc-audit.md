@@ -31,7 +31,7 @@ Seis testes de frescor/prazo e o teste de callback perdido falharam antes das co
 
 ## Evidências reproduzíveis
 
-- Sentinela: 73 testes unitários/hooks e 21 de integração PostgreSQL aprovados, além de tipagem.
+- Sentinela: 74 testes unitários/hooks e 21 de integração PostgreSQL aprovados, além de tipagem.
 - issue-to-pr-ai: 179 testes de scripts/contratos/hooks, dois testes unitários Java, 82 de integração PostgreSQL e `make check` aprovados.
 - Teste conjunto: `ISSUE_TO_PR_AI_DIR=/caminho/issue-to-pr-ai npm run test:e2e:sdlc`. O relatório gerado é `test-results/sdlc-integration-report.json`; a CI usa o commit par fixado em `config/sdlc-peer.json`.
 - Reais: Java/HTTP, PostgreSQL, Prometheus, worker, MCP, wrapper governado, Maven, regressão e substituição de containers.
