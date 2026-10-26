@@ -33,6 +33,7 @@ SDLC_GITHUB_TOKEN_ENV=SENTINELA_GITHUB_TOKEN
 SDLC_VERIFY_TIMEOUT_MS=300000
 LAB_ENABLED=false
 MONITORED_SERVICES=catalog-api
+MONITORED_ENVIRONMENT=staging
 PROMETHEUS_URL=http://127.0.0.1:9091
 ```
 
@@ -58,9 +59,13 @@ Para o piloto de entrega Kubernetes, crie/proteja o environment GitHub **sentine
 
 Habilite `SENTINELA_DELIVERY_ENABLED=true` no repositório somente após revisar ambiente, permissões e acesso ao registry. O workflow manual aceita a PR corretiva já integrada, roda Maven/PostgreSQL, publica a imagem no GHCR por digest e usa um job separado para implantação. Só executa na branch padrão. Configure previamente PostgreSQL, credenciais de pull e o Deployment; o workflow não cria infraestrutura nem altera permissões.
 
-A entrega aplica a imagem com precondições de UID/resourceVersion, aguarda o rollout e envia `deployment.completed`. O Sentinela exige três amostras HTTP saudáveis, distintas e posteriores ao evento, com tráfego. Amostras antigas, repetidas ou ausentes não verificam a correção. Cada instalação monitora um ambiente explícito; o contrato de métricas atual identifica serviço, sem isolamento multitenant.
+A entrega aplica a imagem com precondições de UID/resourceVersion, aguarda o rollout e envia `deployment.completed`. Antes de iniciar, o publisher reconcilia a PR pelo SHA do seu head; isso recupera um callback da CI perdido antes do merge. O commit implantado pode ser o SHA integrado, distinto do SHA da implementação, desde que contenha a correção.
 
-Se a recuperação não for confirmada no prazo, o pipeline tenta restaurar a imagem anterior e registra `deployment.rolled_back`. Se alvo/imagem tiverem mudado concorrentemente, o rollback não sobrescreve a mudança e exige conferência. Falha ou rollback nunca resultam em `verified`. O fechamento da issue pelo merge também não verifica o caso operacional.
+O Sentinela exige três amostras HTTP saudáveis, distintas e posteriores ao evento, com tráfego e antes do prazo. As regras devem preservar `service` e `environment`, além de emitir `sentinela_service_observed_at_seconds` com a hora do scrape do contador HTTP e `up == 1`. Configure `DEPLOYMENT_ENVIRONMENT=staging` no catálogo e carregue as recording rules atualizadas. A hora da consulta não substitui a hora da observação. Amostras futuras, com mais de 20 segundos, de outro ambiente, ausentes ou congeladas não verificam a correção. A repetição da mesma observação não aumenta a contagem. Sem dados válidos, a sequência saudável é interrompida.
+
+`MONITORED_ENVIRONMENT` assume `SDLC_ENVIRONMENT` quando omitido. Se ambos forem configurados, devem coincidir. A seleção por labels evita misturar staging e produção, mas não constitui isolamento de segurança entre tenants: credenciais, rede e instalações continuam exigindo escopo próprio.
+
+Se a recuperação não for confirmada no prazo, o pipeline tenta restaurar a imagem anterior e registra `deployment.rolled_back`. Se alvo/imagem tiverem mudado concorrentemente, o rollback não sobrescreve a mudança e exige conferência. Um rollback confirmado da mesma entrega revoga inclusive uma verificação já concluída; isso cobre a perda de uma resposta do callback antes da decisão de reversão. O fechamento da issue pelo merge também não verifica o caso operacional.
 
 ## Ajustes permanentes
 
@@ -79,3 +84,5 @@ O teste cria um banco Sentinela temporário, rede/containers PostgreSQL, catálo
 GitHub, resposta do agente e decisão de merge são controlados; aplicação, banco, HTTP, Prometheus, worker, MCP, validações e substituição dos containers são reais. Nenhum agente comercial, issue remota de teste, merge real ou ambiente de produção é acionado. O digest local é o ID imutável da imagem Docker; o workflow de entrega usa o digest de manifest publicado no registry. O teste usa janelas Prometheus de 10 segundos para reduzir a duração; o exemplo operacional usa um minuto.
 
 Os recursos criados pelo teste são removidos ao terminar. O relatório fica em `test-results/sdlc-integration-report.json`, ignorado pelo Git. A CI integrada executa contra o commit do outro repositório fixado em `config/sdlc-peer.json`; atualize essa referência somente após conferir os dois contratos e repetir o teste.
+
+A auditoria ampliou o teste: o SHA integrado difere do head, um callback pré-merge se perde e respostas saudáveis do Prometheus são congeladas. Esses caminhos precisam reconciliar a vinculação ou recusar a verificação, preservando o rollback. Veja o [relatório de cobertura e limites](sdlc-audit.md).

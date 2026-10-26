@@ -45,12 +45,12 @@ test('SHA, artefato e deploy ficam vinculados; somente novas amostras verificam 
     const release={deploymentId:'d1',artifactDigest:'sha256:'+'1'.repeat(64)};
     await send('deployment.started',release);await assert.rejects(send('deployment.completed',{...release,artifactDigest:'sha256:'+'2'.repeat(64)}),/divergente/);
     await send('deployment.completed',release);
-    const old:Metric={service:'test-sdlc',at:new Date(0).toISOString(),errorRate:0,p95:20,rpm:100,saturation:0,requests:20,source:'prometheus'};
+    const old:Metric={environment:'test',service:'test-sdlc',at:new Date(0).toISOString(),errorRate:0,p95:20,rpm:100,saturation:0,requests:20,source:'prometheus'};
     await verifySdlcCases([old]);assert.equal((await getCase(item.id))?.healthySamples,0);
     await new Promise(resolve=>setTimeout(resolve,3));const first={...old,at:new Date().toISOString()};await verifySdlcCases([first]);await verifySdlcCases([first]);assert.equal((await getCase(item.id))?.healthySamples,1);
     for(let i=0;i<2;i++){await new Promise(resolve=>setTimeout(resolve,3));await verifySdlcCases([{...old,at:new Date().toISOString()}]);}
     item=(await getCase(item.id))!;assert.equal(item.state,'verified');assert.equal(item.commitSha,base.commitSha);assert.equal(item.deploymentId,'d1');
-    await assert.rejects(send('deployment.rolled_back',release),/fora de ordem/);
+    await send('deployment.rolled_back',release);assert.equal((await getCase(item.id))?.state,'rolled_back');
   }finally{await context.cleanup();}
 });
 test('timeout sem dados marca regressão e rollback nunca vira correção verificada',async()=>{

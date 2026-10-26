@@ -6,8 +6,8 @@ Executada em 26 de outubro de 2026 no checkout independente do Sentinela.
 | --- | --- |
 | Instalação pelo lockfile (`npm ci`) | Aprovada, sem copiar arquivos de ambiente |
 | Tipagem (`npm run check`) | Aprovada; gera tipos do Next.js em checkout novo |
-| Testes unitários e hook (`npm test`) | 70 aprovados |
-| PostgreSQL, LangGraph, MCP, ingestão, ajustes e SDLC (`npm run test:integration`) | 15 aprovados em banco temporário inicialmente vazio |
+| Testes unitários e hook (`npm test`) | 73 aprovados |
+| PostgreSQL, LangGraph, MCP, ingestão, ajustes e SDLC (`npm run test:integration`) | 21 aprovados em banco temporário inicialmente vazio |
 | Build de produção (`npm run build`) | Aprovado |
 | Fluxo completo (`npm run test:e2e:provider`) | Três cenários aprovados com protocolo Ollama controlado |
 | Operação por ambiente (`npm run test:e2e:operations`) | Kubernetes e Azure Functions aprovados com CLIs controladas, worker e API reais |
@@ -28,7 +28,7 @@ O banco temporário foi criado e removido pelo processo de validação, sem alte
 
 ## Limites da validação
 
-O teste SDLC executou os dois contratos idênticos com o checkout `1d0e78621d97e430ce372117f8892138abf653a6` de issue-to-pr-ai. Catálogo Java, PostgreSQL, Prometheus, HTTP, worker, MCP, wrapper governado, teste de regressão vermelho/verde e troca de containers foram reais. GitHub, resposta do agente e aprovação de merge foram controlados. A interface mostrou um caso com três amostras saudáveis e outro revertido sem marcar correção verificada. O [guia do ciclo](sdlc-integration.md) documenta configuração e execução reproduzível.
+O teste SDLC executou os dois contratos idênticos com o checkout `047206f9ffd3c20caf8f0e8e277e0affcc47349a` de issue-to-pr-ai. Catálogo Java, PostgreSQL, Prometheus, HTTP, worker, MCP, wrapper governado, teste de regressão vermelho/verde e troca de containers foram reais. GitHub, resposta do agente e aprovação de merge foram controlados. A interface mostrou um caso com três amostras saudáveis e outro revertido sem marcar correção verificada. O [guia do ciclo](sdlc-integration.md) documenta configuração e execução reproduzível.
 
 O hook foi instalado nos dois checkouts e também recusou um commit real de teste. As verificações cobrem exatamente 20.000 bytes, excesso de um byte, UTF-8, divergência entre índice e working tree, lockfiles, codegen e atributos gerados ainda não staged. Nenhum arquivo alterado desta entrega excede o limite.
 
@@ -37,3 +37,5 @@ Não houve chamada a provedor comercial nem download de modelo nesta preparaçã
 O patch do catálogo e as regras foram verificados separadamente, com base na revisão `8163f6fc5750bb3282b93ccb421d677a70e23d8e` do `issue-to-pr-ai`. O catálogo externo não foi recompilado, implantado ou monitorado ao vivo nesta validação. Logs e traces externos, Alertmanager e exportação para um collector OpenTelemetry real também não foram exercitados.
 
 A aplicação continua sendo uma referência local de operador único. Autenticação individual, isolamento entre organizações e descoberta de topologia externa não estão implementados. Os conectores de ajuste externo foram verificados com provedores controlados; nenhum cluster Kubernetes ou recurso Azure real foi alterado.
+
+A [auditoria posterior](sdlc-audit.md) acrescenta regressões de frescor, ambiente, prazo, reconciliação pós-merge e respostas saudáveis congeladas. Consulte o relatório agregado da CI para os commits desta revisão.

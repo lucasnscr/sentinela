@@ -32,7 +32,7 @@ export async function acceptLifecycleEvent(input:unknown,settings:SdlcSettings=s
           item.state='verifying';item.verificationStartedAt=new Date().toISOString();item.verificationDeadline=new Date(Date.now()+settings.verifyTimeoutMs).toISOString();
           item.result='Deploy recebido; aguardando três novas amostras saudáveis da aplicação.';
         }else if(message.type==='deployment.rolled_back'){
-          if(!['deploying','verifying','regressed'].includes(item.state))throw new Error('Rollback fora de ordem.');
+          if(!['deploying','verifying','regressed','verified'].includes(item.state))throw new Error('Rollback fora de ordem.');
           item.state='rolled_back';item.result='Pipeline informou rollback do deploy corretivo. A correção permanece não verificada.';
         }else{
           if(!['deploying','verifying'].includes(item.state))throw new Error('Falha de deploy fora de ordem.');

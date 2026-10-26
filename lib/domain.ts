@@ -7,6 +7,7 @@ export type Scenario = 'pool_exhaustion' | 'dependency_latency' | 'bad_deploymen
 export type Mitigation = 'restore_pool' | 'disable_latency' | 'rollback' | 'observe';
 export type EvidenceKind = 'metric' | 'log' | 'trace' | 'change' | 'runbook' | 'dependency' | 'runtime';
 export interface Metric {
+  environment?: string;
   service: string; at: string; errorRate: number; p95: number; rpm: number;
   saturation: number; requests: number; source: 'laboratory' | 'prometheus';
 }
