@@ -6,11 +6,12 @@ Executada em 26 de outubro de 2026 no checkout independente do Sentinela.
 | --- | --- |
 | Instalação pelo lockfile (`npm ci`) | Aprovada, sem copiar arquivos de ambiente |
 | Tipagem (`npm run check`) | Aprovada; gera tipos do Next.js em checkout novo |
-| Testes unitários (`npm test`) | 60 aprovados |
-| PostgreSQL, LangGraph, MCP, ingestão e ajustes (`npm run test:integration`) | 11 aprovados em banco temporário inicialmente vazio |
+| Testes unitários e hook (`npm test`) | 69 aprovados |
+| PostgreSQL, LangGraph, MCP, ingestão, ajustes e SDLC (`npm run test:integration`) | 15 aprovados em banco temporário inicialmente vazio |
 | Build de produção (`npm run build`) | Aprovado |
 | Fluxo completo (`npm run test:e2e:provider`) | Três cenários aprovados com protocolo Ollama controlado |
 | Operação por ambiente (`npm run test:e2e:operations`) | Kubernetes e Azure Functions aprovados com CLIs controladas, worker e API reais |
+| Ciclo entre os dois repositórios (`npm run test:e2e:sdlc`) | Correção verificada e entrega defeituosa com rollback aprovadas |
 | Regras e configuração Prometheus do catálogo (`promtool check config`) | Quatro regras válidas |
 | Compose de observabilidade do catálogo (`docker compose config --quiet`) | Aprovado |
 | Workflow GitHub Actions (`actionlint`) | Aprovado |
@@ -26,6 +27,10 @@ Os testes de provedores usam respostas controladas para OpenAI, APIs compatívei
 O banco temporário foi criado e removido pelo processo de validação, sem alterar o histórico da aplicação em uso. A verificação em banco vazio revelou uma dependência indevida do teste em um runbook semeado pelo worker. O teste agora insere seu próprio documento e reaplica o SQL de migração para verificar preservação de conteúdo e suporte a dimensões diferentes.
 
 ## Limites da validação
+
+O teste SDLC executou os dois contratos idênticos com o checkout `264757216119597b69abd2aef72a49e33264e9c8` de issue-to-pr-ai. Catálogo Java, PostgreSQL, Prometheus, HTTP, worker, MCP, wrapper governado, teste de regressão vermelho/verde e troca de containers foram reais. GitHub, resposta do agente e aprovação de merge foram controlados. A interface mostrou um caso com três amostras saudáveis e outro revertido sem marcar correção verificada. O [guia do ciclo](sdlc-integration.md) documenta configuração e execução reproduzível.
+
+O hook foi instalado nos dois checkouts e também recusou um commit real de teste. As verificações cobrem exatamente 20.000 bytes, excesso de um byte, UTF-8, divergência entre índice e working tree, lockfiles, codegen e atributos gerados ainda não staged. Nenhum arquivo alterado desta entrega excede o limite.
 
 Não houve chamada a provedor comercial nem download de modelo nesta preparação do repositório. A inferência real dos adaptadores depende das credenciais e dos modelos disponíveis na instalação.
 

@@ -22,7 +22,7 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1 --port 4320",
     "check": "next typegen && tsc --noEmit",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "node --import tsx --test tests/*.test.ts scripts/check-staged-file-size.test.mjs",
     "test:integration": "node --env-file-if-exists=.env.local --import tsx --test tests/integration/*.test.ts",
     "test:e2e": "node --env-file-if-exists=.env.local --import tsx scripts/e2e.ts",
     "db:up": "docker compose up -d db",
@@ -32,7 +32,8 @@
     "report:deployment": "node --env-file-if-exists=.env.local --import tsx scripts/report-deployment.ts",
     "test:ai": "node --env-file-if-exists=.env.local --import tsx scripts/smoke-ai.ts",
     "test:e2e:provider": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-provider.ts",
-    "test:e2e:operations": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-operations.ts"
+    "test:e2e:operations": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-operations.ts",
+    "test:e2e:sdlc": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-sdlc.ts"
   },
   "dependencies": {
     "@langchain/core": "latest",

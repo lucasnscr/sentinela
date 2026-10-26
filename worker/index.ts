@@ -12,6 +12,8 @@ import { createInvestigator } from './investigation';
 import { samplePrometheus } from './prometheus';
 import { startTelemetry, stopTelemetry } from './observability';
 import { createOperations } from './operations';
+import {createSdlc} from './sdlc';
+import {verifySdlcCases} from './sdlc/verification';
 
 startTelemetry();
 await migrate();
@@ -27,6 +29,7 @@ if(lab)await lab.start();
 const tools=await connectTools();await setMeta('mcp',true);
 const investigator=await createInvestigator(tools,lab);
 const operations=await createOperations();
+const sdlc=await createSdlc();
 await event('worker','Monitoramento ativo','Worker '+workerId.slice(0,8)+'; consultas a cada '+(config.interval/1000)+' segundos.');
 console.log('Sentinela worker ativo. Laboratório: '+(lab?'http://127.0.0.1:'+config.labPort:'desabilitado'));
 void indexKnowledge().then(()=>event('knowledge','Base de conhecimento pronta','Runbooks disponíveis para recuperação.')).catch(error=>event('knowledge','Busca lexical disponível',safeError(error)));
@@ -57,6 +60,7 @@ async function monitor(){
     if(Date.now()-lastCollectionWarning>30000){lastCollectionWarning=Date.now();await event('error','Coleta de métricas indisponível','Os comandos e os conectores operacionais continuam independentes. Confira a fonte de telemetria.');}
   }
   latestMetrics=metrics;
+  await verifySdlcCases(metrics);
   const environment=config.prometheusUrl?'configured':'laboratory';
   const active=await pool.query("SELECT * FROM incidents WHERE status <> 'resolved'");
   for(const row of active.rows){
@@ -94,7 +98,10 @@ async function commands(){
       if(running.has(id))throw new Error('Investigação em andamento. Aguarde a conclusão.');
       running.add(id);
       try{await investigator.review(id,command.payload.approve===true);}finally{running.delete(id);}
-    }else if(command.kind==='operation_plan')await operations.plan(command.payload as {targetId:string;action:'restart'|'scale'|'start';replicas?:number;requestId:string});
+    }else if(command.kind==='sdlc_propose')await sdlc.propose({...command.payload,kind:command.payload.correctionKind});
+    else if(command.kind==='sdlc_publish')await sdlc.publish(command.payload.caseId,command.payload.proposalHash);
+    else if(command.kind==='sdlc_reconcile')await sdlc.reconcile(command.payload.caseId);
+    else if(command.kind==='operation_plan')await operations.plan(command.payload as {targetId:string;action:'restart'|'scale'|'start';replicas?:number;requestId:string});
     else if(command.kind==='operation_review')await operations.review(command.payload.planId,command.payload.approve===true);
     else if(command.kind==='operation_reconcile')await operations.reconcile(command.payload.planId,command.payload.note);
     else if(command.kind==='reinvestigate')launch(command.payload.incidentId);
