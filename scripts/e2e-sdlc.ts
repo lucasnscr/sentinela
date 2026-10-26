@@ -84,7 +84,9 @@ try{
   await catalog.use(catalog.badImage);const third=await prepareCase([first.incidentId,second.incidentId]);
   currentIssue=JSON.parse(await readFile(stateFile,'utf8')).issues.find((value:any)=>value.number===third.issueNumber);currentSha=fixed.sha;prNumber=9;
   const staleEnv={...deliveryEnv,SENTINELA_PR_NUMBER:'9',SENTINELA_DEPLOYMENT_ID:'stale-contract-'+suffix};
-  await assert.rejects(deliver({env:staleEnv,api,deploy:async()=>{await catalog!.use(catalog!.fixedImage);await waitFor('métricas saudáveis congeladas',()=>catalog!.freezeHealthyTelemetry());},rollback:async()=>{catalog!.resumeTelemetry();await catalog!.use(catalog!.fixedImage);},verifyOptions:{timeoutMs:90000,pollMs:500}}),/rollback/);
+  let telemetryFrozen=false,staleRollbacks=0;
+  await assert.rejects(deliver({env:staleEnv,api,deploy:async()=>{await catalog!.use(catalog!.fixedImage);await waitFor('métricas saudáveis congeladas',()=>catalog!.freezeHealthyTelemetry());telemetryFrozen=true;},rollback:async()=>{staleRollbacks++;catalog!.resumeTelemetry();await catalog!.use(catalog!.fixedImage);},verifyOptions:{timeoutMs:90000,pollMs:500}}),/rollback/);
+  assert.equal(telemetryFrozen,true,'O cenário exige que métricas saudáveis tenham sido congeladas antes da conclusão do deploy.');assert.equal(staleRollbacks,1);
   assert.equal((await cases()).find(value=>value.id===third.id)?.state,'rolled_back');
   console.log('SDLC 6/7: métricas saudáveis congeladas não verificam uma nova entrega.');
   const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected']};
