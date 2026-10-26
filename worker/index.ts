@@ -35,6 +35,7 @@ console.log('Sentinela worker ativo. Laboratório: '+(lab?'http://127.0.0.1:'+co
 void indexKnowledge().then(()=>event('knowledge','Base de conhecimento pronta','Runbooks disponíveis para recuperação.')).catch(error=>event('knowledge','Busca lexical disponível',safeError(error)));
 
 const consecutive=new Map<string,number>(),healthy=new Map<string,number>(),running=new Set<string>();
+const lastDetected=new Map<string,string>(),lastHealthy=new Map<string,string>();
 let closing=false;
 const pending=new Set<Promise<unknown>>();
 function launch(id:string,resume=false){
@@ -61,20 +62,23 @@ async function monitor(){
   }
   latestMetrics=metrics;
   await verifySdlcCases(metrics);
-  const environment=config.prometheusUrl?'configured':'laboratory';
+  const environment=config.prometheusUrl?(config.monitoredEnvironment||'configured'):'laboratory';
   const active=await pool.query("SELECT * FROM incidents WHERE status <> 'resolved'");
   for(const row of active.rows){
     if(row.stage==='queued'&&!running.has(row.id))launch(row.id);
     const incident=incidentFromRow(row);
     const metric=metrics.find(m=>m.service===incident.service);
-    if(!incident.environment.startsWith('runtime:')&&metric&&isHealthy(metric)){
-      const count=(healthy.get(incident.id)||0)+1;healthy.set(incident.id,count);
+    if(incident.environment===environment&&metric&&isHealthy(metric)){
+      const count=(healthy.get(incident.id)||0)+(lastHealthy.get(incident.id)===metric.at?0:1);healthy.set(incident.id,count);lastHealthy.set(incident.id,metric.at);
       if(count>=3&&!running.has(incident.id))await closeIncident(incident.id);
-    }else healthy.set(incident.id,0);
+    }else{healthy.set(incident.id,0);lastHealthy.delete(incident.id);}
     if(incident.status==='investigating'&&incident.stage==='inconclusive'&&incident.attempts<3&&Date.now()-new Date(incident.updatedAt).getTime()>60000)launch(incident.id);
   }
   const candidates=config.prometheusUrl?metrics:metrics.filter(m=>m.service==='checkout');
+  for(const service of consecutive.keys())if(!candidates.some(metric=>metric.service===service)){consecutive.set(service,0);lastDetected.delete(service);}
   for(const metric of candidates){
+    if(lastDetected.get(metric.service)===metric.at)continue;
+    lastDetected.set(metric.service,metric.at);
     const alert=detect(metric);
     consecutive.set(metric.service,alert?(consecutive.get(metric.service)||0)+1:0);
     if(!alert||(consecutive.get(metric.service)||0)<2)continue;
@@ -107,7 +111,8 @@ async function commands(){
     else if(command.kind==='reinvestigate')launch(command.payload.incidentId);
     else if(command.kind==='alert'){
       const {service,title}=command.payload;
-      const {incident,created}=await openIncident(service,'configured',title,fingerprint(service,'configured'));
+      const environment=config.monitoredEnvironment||'configured';
+      const {incident,created}=await openIncident(service,environment,title,fingerprint(service,environment));
       if(created){await event('alert','Alerta recebido por webhook',title,incident.id);launch(incident.id);}
     }else throw new Error('Comando desconhecido.');
     await finishCommand(command.id);

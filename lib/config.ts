@@ -15,5 +15,6 @@ export const config = {
   labEnabled: process.env.LAB_ENABLED !== 'false',
   labPort: integer(process.env.LAB_BASE_PORT, 4421, 1024, 65000),
   prometheusUrl: process.env.PROMETHEUS_URL || '',
+  monitoredEnvironment: process.env.MONITORED_ENVIRONMENT || process.env.SDLC_ENVIRONMENT || '',
   services: (process.env.MONITORED_SERVICES || 'checkout,payments,inventory').split(',').map(s => s.trim()).filter(s => /^[a-zA-Z0-9_.-]{1,64}$/.test(s)),
 };
