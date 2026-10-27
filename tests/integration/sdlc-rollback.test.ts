@@ -30,3 +30,10 @@ test('rollback sem recuperação no prazo gera escalonamento único',async()=>{
     const {rows}=await pool.query("SELECT * FROM events WHERE incident_id=$1 AND kind='escalation'",[item.incidentId]);assert.equal(rows.length,1);
   }finally{await f.cleanup();}
 });
+test('falha do próprio rollback gera intervenção sem duplicar escalonamento',async()=>{
+  const f=await rollbackFixture();try{
+    await f.send('deployment.rollback_failed');await f.send('deployment.rollback_failed');
+    assert.equal((await getCase(f.item.id))?.state,'rollback_failed');
+    const {rows}=await pool.query("SELECT * FROM events WHERE incident_id=$1 AND kind='escalation'",[f.item.incidentId]);assert.equal(rows.length,1);
+  }finally{await f.cleanup();}
+});
