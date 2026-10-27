@@ -14,9 +14,11 @@ flowchart LR
   H --> I[Correção verificada ou rollback]
 ```
 
+Consulte a [evolução nas cinco fases](sdlc-phases.md) para configurar tentativas, inatividade/cancelamento, aprendizado revisado e políticas de resultado. O aprendizado aprovado pode gerar teste Java, avaliação e runbook em uma PR draft; merge continua dependendo do mantenedor.
+
 ## Contrato e identidades
 
-`contracts/sdlc-v1.mjs` é idêntico nos dois repositórios. O teste integrado compara os bytes antes de iniciar. Mudanças incompatíveis exigem outra versão do protocolo.
+`contracts/sdlc-v1.mjs` e `contracts/learning-v1.mjs` são idênticos nos dois repositórios. O teste integrado compara os bytes antes de iniciar. Mudanças incompatíveis exigem outra versão do protocolo.
 
 O caso conserva incidente, serviço, ambiente e repositório; a publicação acrescenta issue; a CI vincula PR e SHA; a entrega acrescenta commit implantado, digest imutável e identificador do deploy. Eventos não podem trocar essas identidades durante uma entrega. Reenvios do mesmo evento são idempotentes; reutilizar seu ID para outro conteúdo é recusado. O horário de recebimento no Sentinela define o início da verificação, sem confiar no relógio do emissor.
 
@@ -61,7 +63,7 @@ Habilite `SENTINELA_DELIVERY_ENABLED=true` no repositório somente após revisar
 
 A entrega aplica a imagem com precondições de UID/resourceVersion, aguarda o rollout e envia `deployment.completed`. Antes de iniciar, o publisher reconcilia a PR pelo SHA do seu head; isso recupera um callback da CI perdido antes do merge. O commit implantado pode ser o SHA integrado, distinto do SHA da implementação, desde que contenha a correção.
 
-O Sentinela exige três amostras HTTP saudáveis, distintas e posteriores ao evento, com tráfego e antes do prazo. As regras devem preservar `service` e `environment`, além de emitir `sentinela_service_observed_at_seconds` com a hora do scrape do contador HTTP e `up == 1`. Configure `DEPLOYMENT_ENVIRONMENT=staging` no catálogo e carregue as recording rules atualizadas. A hora da consulta não substitui a hora da observação. Amostras futuras, com mais de 20 segundos, de outro ambiente, ausentes ou congeladas não verificam a correção. A repetição da mesma observação não aumenta a contagem. Sem dados válidos, a sequência saudável é interrompida.
+A política padrão exige três amostras HTTP saudáveis, distintas e posteriores ao evento, com tráfego e antes do prazo. Políticas específicas acrescentam mínimo de amostras, janela estável e probes GET de negócio/dados; veja o [exemplo](../examples/issue-to-pr-ai/recovery-policy.json). O rollback é verificado em sequência própria. As regras devem preservar `service` e `environment`, além de emitir `sentinela_service_observed_at_seconds` com a hora do scrape do contador HTTP e `up == 1`. Configure `DEPLOYMENT_ENVIRONMENT=staging` no catálogo e carregue as recording rules atualizadas. A hora da consulta não substitui a hora da observação. Amostras futuras, com mais de 20 segundos, de outro ambiente, ausentes ou congeladas não verificam a correção. A repetição da mesma observação não aumenta a contagem. Sem dados válidos, a sequência saudável é interrompida.
 
 `MONITORED_ENVIRONMENT` assume `SDLC_ENVIRONMENT` quando omitido. Se ambos forem configurados, devem coincidir. A seleção por labels evita misturar staging e produção, mas não constitui isolamento de segurança entre tenants: credenciais, rede e instalações continuam exigindo escopo próprio.
 

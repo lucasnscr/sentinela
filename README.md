@@ -8,6 +8,8 @@ O Sentinela complementa o [issue-to-pr-ai](https://github.com/lucasnscr/issue-to
 
 A [integração do ciclo SDLC](docs/sdlc-integration.md) permite publicar uma issue revisada, receber a PR após CI e verificar o deploy corretivo por novas métricas. Acesse `/sdlc` para acompanhar os casos. Inclui teste conjunto com catálogo Java/PostgreSQL, Prometheus, worker e rollback reais, usando GitHub e agente controlados.
 
+A [evolução em cinco fases](docs/sdlc-phases.md) inclui saúde após rollback, tentativas sucessivas, falhas/cancelamentos, aprendizado aprovado com regressão executável e políticas de negócio/dados com janela estável. O encaminhamento de aprendizado abre PR draft por workflow separado, quando habilitado.
+
 A [auditoria do ciclo](docs/sdlc-audit.md) registra correções de frescor, ambiente, prazo e callbacks, com os limites da validação. O [artigo para o Medium](docs/artigo-medium-ai-sdlc.md) apresenta o processo como autonomia supervisionada.
 
 ```mermaid
