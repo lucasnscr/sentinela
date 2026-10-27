@@ -83,3 +83,8 @@ ALTER TABLE remediation_cases DROP CONSTRAINT IF EXISTS remediation_cases_incide
 ALTER TABLE remediation_cases ADD COLUMN IF NOT EXISTS attempt integer NOT NULL DEFAULT 1;
 ALTER TABLE remediation_cases ADD COLUMN IF NOT EXISTS previous_case_id text REFERENCES remediation_cases(id);
 CREATE UNIQUE INDEX IF NOT EXISTS remediation_cases_attempt ON remediation_cases(incident_id,attempt);
+CREATE TABLE IF NOT EXISTS sdlc_learning (
+  case_id text NOT NULL REFERENCES remediation_cases(id), version integer NOT NULL,
+  state text NOT NULL, payload jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(case_id,version)
+);

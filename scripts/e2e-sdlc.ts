@@ -11,12 +11,13 @@ import {once} from 'node:events';
 import pg from 'pg';
 import {config} from '../lib/config';
 import {catalogFixture} from './sdlc-test/catalog.mjs';
+import {exerciseLearning} from './sdlc-test/learning.mjs';
 import {waitFor} from './sdlc-test/process.mjs';
 import type {Snapshot} from '../lib/domain';
 import type {RemediationCase} from '../lib/sdlc/types';
 
 const peer=process.env.ISSUE_TO_PR_AI_DIR;if(!peer)throw new Error('Configure ISSUE_TO_PR_AI_DIR com o checkout issue-to-pr-ai.');
-assert.equal(await readFile('contracts/sdlc-v1.mjs','utf8'),await readFile(path.join(peer,'contracts/sdlc-v1.mjs'),'utf8'),'Os contratos dos dois repositórios devem ser idênticos.');
+for(const contract of ['sdlc-v1.mjs','learning-v1.mjs'])assert.equal(await readFile('contracts/'+contract,'utf8'),await readFile(path.join(peer,'contracts',contract),'utf8'),'Os contratos dos dois repositórios devem ser idênticos.');
 const directory=await mkdtemp(path.join(tmpdir(),'sentinela-sdlc-')),suffix=randomUUID().slice(0,8);
 const database='sentinela_sdlc_'+suffix.replaceAll('-',''),admin=new pg.Client({connectionString:config.databaseUrl});
 const token=randomUUID()+randomUUID(),callback=randomUUID()+randomUUID(),repo='lucasnscr/issue-to-pr-ai';
@@ -72,6 +73,7 @@ try{
   const verified=await deliver({env:deliveryEnv,api,deploy:async()=>{deployments++;await catalog!.use(catalog!.fixedImage);},rollback:async()=>catalog!.use(catalog!.badImage),verifyOptions:{timeoutMs:90000,pollMs:500}});
   assert.equal(verified.state,'verified');assert.equal(verified.commitSha,fixed.integratedSha);assert.notEqual(fixed.sha,fixed.integratedSha);assert.equal(deployments,1);
   console.log('SDLC 4/7: PR/CI vinculadas, gate de merge preservado e deploy corretivo verificado com três amostras novas.');
+  const learning=await exerciseLearning({base,token,callback,item:(await cases()).find(item=>item.id===first.id)!,peer,catalog,repo,stateFile});
   await catalog.use(catalog.badImage);const second=await prepareCase([first.incidentId]);
   currentIssue=JSON.parse(await readFile(stateFile,'utf8')).issues.find((value:any)=>value.number===second.issueNumber);currentSha=catalog.badSha;prNumber=8;merged=false;
   const badEnv={...deliveryEnv,SENTINELA_PR_NUMBER:'8',GITHUB_SHA:currentSha,SENTINELA_ARTIFACT_DIGEST:await catalog.digest(catalog.badImage),SENTINELA_DEPLOYMENT_ID:'bad-contract-'+suffix};
@@ -118,7 +120,7 @@ try{
   prClosed=true;await notifyImplementation({env:deliveryEnv,api,event:{action:'closed',pull_request:{number:12,head:{sha:currentSha}}}});
   assert.equal((await cases()).find(item=>item.id===outcome.id)?.state,'cancelled');
   console.log('FASE 3 PASS: CI falha/retoma, evento antigo ignorado e PR encerrada bloqueada.');
-  const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,failedRollbackCaseId:fourth.id,retryCaseId:retry.id,developmentOutcomeCaseId:outcome.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected','rollback recovery independently verified','failed rollback escalated','second PR for the same incident verified','failed CI and rejected PR synchronized']};
+  const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,failedRollbackCaseId:fourth.id,retryCaseId:retry.id,learning,developmentOutcomeCaseId:outcome.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected','rollback recovery independently verified','failed rollback escalated','second PR for the same incident verified','failed CI and rejected PR synchronized','reviewed learning generated and regression red/green']};
   await mkdir('test-results',{recursive:true});await writeFile('test-results/sdlc-integration-report.json',JSON.stringify(report,null,2));console.log('SDLC 7/7: PASS ciclo integrado e cenário de rollback. Relatório em test-results/sdlc-integration-report.json.');
   if(process.argv.includes('--preview')){console.log('Prévia isolada, GitHub/agente controlados: '+base+'/sdlc');await Promise.race([once(process,'SIGINT'),once(process,'SIGTERM')]);}
 }catch(error){console.error(error instanceof Error?error.message:'SDLC integration failed');if(appLog)console.error(appLog.slice(-1500));process.exitCode=1;}
