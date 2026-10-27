@@ -25,3 +25,13 @@ Fase 1 concluída: PRs Sentinela #6 e issue-to-pr-ai #56 incorporadas após revi
 Uma tentativa terminal permite preparar outra proposta com `previousCaseId`, incidente e critérios revisados. A nova tentativa recebe identidade, hash, issue e PR próprias. O padrão de `SDLC_MAX_ATTEMPTS` é três, com limite configurável entre um e vinte. A criação é serializada por incidente; uma solicitação concorrente reutiliza o mesmo rascunho. Pais obsoletos, tentativas ativas e excesso de limite são recusados.
 
 Eventos novos de um caso substituído não alteram o estado. Um recibo antigo só retorna histórico. Antes de executar o deploy, o publisher exige confirmação de início novo, ativo e no estado `deploying`; recibos repetidos ou de tentativa anterior não autorizam mutação.
+
+Fase 2 concluída: PRs Sentinela #8 e issue-to-pr-ai #58 incorporadas após 27 testes PostgreSQL, 185 testes de scripts do par e teste conjunto na CI 40426944132.
+
+## Fase 3
+
+O notificador executa somente código da branch padrão, sem checkout de candidato ou artefatos, e sincroniza `ci.failed`, `ci.cancelled`, `implementation.failed`, `implementation.cancelled` e `pull_request.closed`. Interrupções pré-PR exigem metadados de uma execução autorizada do implementador. IDs de execução e tentativa impedem que CI antiga substitua resultado mais recente; SHA, repositório, issue, proposta e PR continuam vinculados.
+
+Cancelamento local exige token de operação, hash revisado e motivo. Com PR vinculada, o encerramento ocorre no GitHub. `SDLC_INACTIVITY_TIMEOUT_MS` marca tentativas sem atividade como `abandoned` e escala uma vez; PR abandonada deve ser encerrada antes de outra correção. CI reprovada pode retomar na mesma PR. Nenhuma dessas transições concede merge, label ou execução de agente.
+
+`SDLC_DEPLOYMENT_TIMEOUT_MS` marca entrega sem confirmação como `deployment_uncertain`. Outra mutação permanece bloqueada. Somente recibo autenticado com o mesmo SHA, digest e deploymentId reconcilia conclusão ou rollback; o operador deve conferir o provedor. O watchdog não executa deploy ou rollback por conta própria.

@@ -63,9 +63,9 @@ try{
   const {deliver}=await import(pathToFileURL(path.join(peer,'scripts/sentinela/deliver.mjs')).href);
   const deliveryEnv={SENTINELA_ENABLED:'true',SENTINELA_DELIVERY_ENABLED:'true',SENTINELA_URL:base,SENTINELA_CALLBACK_TOKEN:callback,GITHUB_REPOSITORY:repo,SENTINELA_SERVICE:'catalog-api',SENTINELA_ENVIRONMENT:'contract-test',SENTINELA_PR_NUMBER:'7',GITHUB_SHA:fixed.integratedSha,SENTINELA_ARTIFACT_DIGEST:fixed.digest,SENTINELA_DEPLOYMENT_ID:'contract-'+suffix};
   let merged=false;
-  let currentIssue=issue,currentSha=fixed.sha,prNumber=7;
-  const api=async(endpoint:string)=>{const pr={number:prNumber,state:merged?'closed':'open',merged,merge_commit_sha:currentSha,head:{sha:currentSha,repo:{full_name:repo}},base:{repo:{full_name:repo}},body:'Closes #'+currentIssue.number};if(endpoint.includes('/commits/'))return [pr];if(endpoint.includes('/pulls/'))return pr;if(endpoint.includes('/issues/'))return currentIssue;if(endpoint.includes('/compare/'))return {status:'identical'};throw new Error('Unexpected GitHub metadata request.');};
-  const ciEvent=()=>({workflow_run:{conclusion:'success',repository:{full_name:repo},head_repository:{full_name:repo},head_sha:currentSha}});
+  let currentIssue=issue,currentSha=fixed.sha,prNumber=7,prClosed=false;
+  const api=async(endpoint:string)=>{const pr={number:prNumber,state:merged||prClosed?'closed':'open',merged,merge_commit_sha:currentSha,head:{sha:currentSha,repo:{full_name:repo}},base:{repo:{full_name:repo}},body:'Closes #'+currentIssue.number};if(endpoint.includes('/commits/'))return [pr];if(endpoint.includes('/pulls/'))return pr;if(endpoint.includes('/issues/'))return currentIssue;if(endpoint.includes('/compare/'))return {status:'identical'};throw new Error('Unexpected GitHub metadata request.');};
+  const ciEvent=()=>({workflow_run:{id:1,run_attempt:1,name:'CI',conclusion:'success',repository:{full_name:repo},head_repository:{full_name:repo},head_sha:currentSha}});
   await notifyImplementation({env:deliveryEnv,api,event:ciEvent()});await notifyImplementation({env:deliveryEnv,api,event:ciEvent()});
   let deployments=0;await assert.rejects(deliver({env:deliveryEnv,api,deploy:async()=>{deployments++;},rollback:async()=>{}}),/merge/);assert.equal(deployments,0);
   merged=true;
@@ -106,7 +106,19 @@ try{
   assert.equal(failedRollbacks,1);assert.equal((await cases()).find(item=>item.id===fourth.id)?.state,'rollback_failed');
   assert.ok((await snapshot()).events.some(event=>event.kind==='escalation'&&event.incidentId===fourth.incidentId));
   console.log('FASE 1 PASS: rollback saudável confirmado e reversão sem recuperação escalada.');
-  const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,failedRollbackCaseId:fourth.id,retryCaseId:retry.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected','rollback recovery independently verified','failed rollback escalated','second PR for the same incident verified']};
+  await command({kind:'sdlc_propose',requestId:randomUUID(),incidentId:fourth.incidentId,previousCaseId:fourth.id,correctionKind:'application',summary:'Nova hipótese após falha de rollback; acompanhar CI e encerramento.',acceptanceCriteria:['Não entregar uma PR reprovada ou encerrada.'],evidenceIds:[]});
+  const outcome=(await cases()).find(item=>item.previousCaseId===fourth.id)!;
+  await command({kind:'sdlc_publish',requestId:randomUUID(),caseId:outcome.id,proposalHash:outcome.proposalHash});
+  const published=(await cases()).find(item=>item.id===outcome.id)!;
+  currentIssue=JSON.parse(await readFile(stateFile,'utf8')).issues.find((value:any)=>value.number===published.issueNumber);currentSha=fixed.sha;prNumber=12;merged=false;
+  const failedCi=ciEvent();failedCi.workflow_run.id=50;failedCi.workflow_run.conclusion='failure';
+  await notifyImplementation({env:deliveryEnv,api,event:failedCi});assert.equal((await cases()).find(item=>item.id===outcome.id)?.state,'ci_failed');
+  const goodCi=ciEvent();goodCi.workflow_run.id=51;await notifyImplementation({env:deliveryEnv,api,event:goodCi});
+  await notifyImplementation({env:deliveryEnv,api,event:failedCi});assert.equal((await cases()).find(item=>item.id===outcome.id)?.state,'pr_open');
+  prClosed=true;await notifyImplementation({env:deliveryEnv,api,event:{action:'closed',pull_request:{number:12,head:{sha:currentSha}}}});
+  assert.equal((await cases()).find(item=>item.id===outcome.id)?.state,'cancelled');
+  console.log('FASE 3 PASS: CI falha/retoma, evento antigo ignorado e PR encerrada bloqueada.');
+  const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,failedRollbackCaseId:fourth.id,retryCaseId:retry.id,developmentOutcomeCaseId:outcome.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected','rollback recovery independently verified','failed rollback escalated','second PR for the same incident verified','failed CI and rejected PR synchronized']};
   await mkdir('test-results',{recursive:true});await writeFile('test-results/sdlc-integration-report.json',JSON.stringify(report,null,2));console.log('SDLC 7/7: PASS ciclo integrado e cenário de rollback. Relatório em test-results/sdlc-integration-report.json.');
   if(process.argv.includes('--preview')){console.log('Prévia isolada, GitHub/agente controlados: '+base+'/sdlc');await Promise.race([once(process,'SIGINT'),once(process,'SIGTERM')]);}
 }catch(error){console.error(error instanceof Error?error.message:'SDLC integration failed');if(appLog)console.error(appLog.slice(-1500));process.exitCode=1;}

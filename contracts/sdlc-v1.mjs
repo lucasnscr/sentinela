@@ -1,5 +1,6 @@
 // Shared, dependency-free wire contract. Keep identical in both repositories.
 export const protocol='sentinela-sdlc/v1';
+export const developmentTypes=['ci.failed','ci.cancelled','implementation.failed','implementation.cancelled','pull_request.closed'];
 const fail=message=>{throw new Error(message);};
 const string=(value,name,max=200)=>typeof value==='string'&&value.length>0&&value.length<=max?value:fail('Invalid '+name);
 const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'')?value:fail('Invalid case ID');
@@ -17,7 +18,7 @@ export function extractCase(body){
 }
 export function validateEvent(input){
   if(!input||input.protocol!==protocol)fail('Unsupported SDLC protocol');
-  const types=['implementation.published','deployment.started','deployment.completed','deployment.failed','deployment.rolled_back','deployment.rollback_failed'];
+  const types=['implementation.published','deployment.started','deployment.completed','deployment.failed','deployment.rolled_back','deployment.rollback_failed',...developmentTypes];
   if(!types.includes(input.type))fail('Invalid lifecycle event');
   const type=input.type;
   const id=string(input.id,'event ID',180);if(!/^[A-Za-z0-9:_.-]+$/.test(id))fail('Invalid event ID');
@@ -27,8 +28,18 @@ export function validateEvent(input){
   const commitSha=string(input.commitSha,'commit',40);if(!/^[a-f0-9]{40}$/.test(commitSha))fail('Full commit SHA required');
   const service=string(input.service,'service',64),environment=string(input.environment,'environment',64);
   if(!/^[A-Za-z0-9_.-]+$/.test(service)||!/^[A-Za-z0-9_.-]+$/.test(environment))fail('Invalid service/environment');
+  const beforePr=['implementation.failed','implementation.cancelled'].includes(type);
+  if(beforePr&&input.pullRequestNumber!==null)fail('Pre-PR outcome must not bind a pull request');
+  if(type.startsWith('ci.')&&input.runId===undefined)fail('CI outcome requires execution identity');
   const result={protocol,type,id,at,caseId,repository:repo,proposalHash,commitSha,service,environment,
-    issueNumber:number(input.issueNumber),pullRequestNumber:number(input.pullRequestNumber)};
+    issueNumber:number(input.issueNumber),pullRequestNumber:beforePr&&input.pullRequestNumber==null?null:number(input.pullRequestNumber)};
+  if(input.runId!==undefined){result.runId=number(input.runId);result.runAttempt=number(input.runAttempt);}
+  if(developmentTypes.includes(type)){
+    const executionId=string(input.executionId,'execution ID',100);if(!/^[A-Za-z0-9:_.-]+$/.test(executionId))fail('Invalid execution ID');
+    const reason=type==='pull_request.closed'?'closed_without_merge':type.endsWith('cancelled')?'cancelled':'failure';
+    if(input.reason!==reason)fail('Invalid development outcome');
+    return {...result,executionId,reason};
+  }
   if(type.startsWith('deployment.')){
     const deploymentId=string(input.deploymentId,'deployment ID',150);
     if(!/^[A-Za-z0-9_.:-]+$/.test(deploymentId))fail('Invalid deployment ID');

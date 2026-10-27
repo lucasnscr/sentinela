@@ -5,6 +5,7 @@ import {checkMutation,verifyToken} from '@/lib/security';
 import {z} from 'zod';
 export const dynamic='force-dynamic';
 const command=z.discriminatedUnion('kind',[
+  z.object({kind:z.literal('sdlc_cancel'),requestId:z.uuid().optional(),caseId:z.uuid(),proposalHash:z.string().regex(/^[a-f0-9]{64}$/),reason:z.string().trim().min(5).max(500)}),
   z.object({kind:z.literal('sdlc_propose'),requestId:z.uuid().optional(),incidentId:z.uuid(),previousCaseId:z.uuid().optional(),summary:z.string().min(10).max(1500),acceptanceCriteria:z.array(z.string().min(5).max(300)).min(1).max(12),evidenceIds:z.array(z.string().max(150)).max(12),correctionKind:z.enum(['application','configuration'])}),
   z.object({kind:z.literal('sdlc_publish'),requestId:z.uuid().optional(),caseId:z.uuid(),proposalHash:z.string().regex(/^[a-f0-9]{64}$/)}),
   z.object({kind:z.literal('sdlc_reconcile'),requestId:z.uuid().optional(),caseId:z.uuid()}),

@@ -14,6 +14,7 @@ import { startTelemetry, stopTelemetry } from './observability';
 import { createOperations } from './operations';
 import {createSdlc} from './sdlc';
 import {verifySdlcCases} from './sdlc/verification';
+import {cancelDevelopment,reconcileDevelopment} from './sdlc/development';
 
 startTelemetry();
 await migrate();
@@ -61,7 +62,7 @@ async function monitor(){
     if(Date.now()-lastCollectionWarning>30000){lastCollectionWarning=Date.now();await event('error','Coleta de métricas indisponível','Os comandos e os conectores operacionais continuam independentes. Confira a fonte de telemetria.');}
   }
   latestMetrics=metrics;
-  await verifySdlcCases(metrics);
+  await verifySdlcCases(metrics);await reconcileDevelopment();
   const environment=config.prometheusUrl?(config.monitoredEnvironment||'configured'):'laboratory';
   const active=await pool.query("SELECT * FROM incidents WHERE status <> 'resolved'");
   for(const row of active.rows){
@@ -104,6 +105,7 @@ async function commands(){
       try{await investigator.review(id,command.payload.approve===true);}finally{running.delete(id);}
     }else if(command.kind==='sdlc_propose')await sdlc.propose({...command.payload,kind:command.payload.correctionKind});
     else if(command.kind==='sdlc_publish')await sdlc.publish(command.payload.caseId,command.payload.proposalHash);
+    else if(command.kind==='sdlc_cancel')await cancelDevelopment(command.payload.caseId,command.payload.proposalHash,command.payload.reason);
     else if(command.kind==='sdlc_reconcile')await sdlc.reconcile(command.payload.caseId);
     else if(command.kind==='operation_plan')await operations.plan(command.payload as {targetId:string;action:'restart'|'scale'|'start';replicas?:number;requestId:string});
     else if(command.kind==='operation_review')await operations.review(command.payload.planId,command.payload.approve===true);
