@@ -6,11 +6,11 @@ export function redactProposal(value:string){
     .replace(/Bearer\s+[^\s]+/gi,'Bearer [removido]')
     .replace(/https?:\/\/[^\s<>()]+/g,raw=>{try{const url=new URL(raw);url.username='';url.password='';url.search='';url.hash='';return url.toString();}catch{return '[URL removida]';}});
 }
-export function renderProposal(input:Pick<RemediationCase,'id'|'incidentId'|'repository'|'service'|'environment'|'kind'|'summary'|'acceptanceCriteria'|'evidence'>){
+export function renderProposal(input:Pick<RemediationCase,'id'|'incidentId'|'repository'|'service'|'environment'|'kind'|'summary'|'acceptanceCriteria'|'evidence'|'attempt'|'previousCaseId'>){
   const normalized={...input,summary:redactProposal(input.summary),acceptanceCriteria:input.acceptanceCriteria.map(redactProposal),evidence:input.evidence.map(item=>({...item,summary:redactProposal(item.summary)}))};
   const hash=createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
   const body=[caseMarker(input.id,hash),'',`# Correção operacional: ${input.service}`,'',
-    `- Caso: ${input.id}`,`- Incidente: ${input.incidentId}`,`- Repositório: ${input.repository}`,`- Serviço/ambiente: ${input.service} / ${input.environment}`,`- Tipo: ${input.kind}`,'',
+    `- Caso: ${input.id}`,`- Incidente: ${input.incidentId}`,`- Tentativa: ${input.attempt||1}`,...(input.previousCaseId?[`- Caso anterior: ${input.previousCaseId}`]:[]),`- Repositório: ${input.repository}`,`- Serviço/ambiente: ${input.service} / ${input.environment}`,`- Tipo: ${input.kind}`,'',
     '## Problema revisado','',normalized.summary,'','## Evidências selecionadas','',
     ...normalized.evidence.map(item=>`- [${item.id}] ${item.kind}: ${item.summary}`),'','## Critérios de aceite','',
     ...normalized.acceptanceCriteria.map(item=>'- [ ] '+item),'',

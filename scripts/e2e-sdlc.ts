@@ -80,6 +80,15 @@ try{
   await assert.rejects(deliver({env:badEnv,api,deploy:async()=>catalog!.use(catalog!.badImage),rollback:async()=>{rollbacks++;await catalog!.use(catalog!.fixedImage);},verifyOptions:{timeoutMs:90000,pollMs:500}}),/rollback/);
   assert.equal(rollbacks,1);assert.equal((await cases()).find(value=>value.id===second.id)?.state,'rolled_back');
   console.log('SDLC 5/7: artefato defeituoso recusado pela verificação e rollback executado uma única vez.');
+  await command({kind:'sdlc_propose',requestId:randomUUID(),incidentId:second.incidentId,previousCaseId:second.id,correctionKind:'application',summary:'Revisar a hipótese após rollback e entregar a correção em outra PR.',acceptanceCriteria:['Restaurar a listagem e preservar a tentativa anterior.'],evidenceIds:[]});
+  const retry=(await cases()).find(item=>item.previousCaseId===second.id)!;assert.equal(retry.attempt,2);assert.equal(retry.state,'proposed');
+  await command({kind:'sdlc_publish',requestId:randomUUID(),caseId:retry.id,proposalHash:retry.proposalHash});
+  const retryPublished=(await cases()).find(item=>item.id===retry.id)!;
+  currentIssue=JSON.parse(await readFile(stateFile,'utf8')).issues.find((value:any)=>value.number===retryPublished.issueNumber);currentSha=fixed.sha;prNumber=11;
+  const retryEnv={...deliveryEnv,SENTINELA_PR_NUMBER:'11',SENTINELA_DEPLOYMENT_ID:'retry-'+suffix};
+  const retryResult=await deliver({env:retryEnv,api,deploy:async()=>catalog!.use(catalog!.fixedImage),rollback:async()=>catalog!.use(catalog!.fixedImage),verifyOptions:{timeoutMs:90000,pollMs:500}});
+  assert.equal(retryResult.state,'verified');assert.equal((await cases()).find(item=>item.id===second.id)?.state,'rolled_back');
+  assert.notEqual(retryPublished.issueNumber,second.issueNumber);console.log('FASE 2 PASS: segunda PR no mesmo incidente, com revisão e histórico preservados.');
   await waitFor('recuperação após rollback',async()=>(await snapshot()).incidents.find(item=>item.id===second.incidentId)?.status==='resolved',120000);
   await catalog.use(catalog.badImage);const third=await prepareCase([first.incidentId,second.incidentId]);
   currentIssue=JSON.parse(await readFile(stateFile,'utf8')).issues.find((value:any)=>value.number===third.issueNumber);currentSha=fixed.sha;prNumber=9;
@@ -97,7 +106,7 @@ try{
   assert.equal(failedRollbacks,1);assert.equal((await cases()).find(item=>item.id===fourth.id)?.state,'rollback_failed');
   assert.ok((await snapshot()).events.some(event=>event.kind==='escalation'&&event.incidentId===fourth.incidentId));
   console.log('FASE 1 PASS: rollback saudável confirmado e reversão sem recuperação escalada.');
-  const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,failedRollbackCaseId:fourth.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected','rollback recovery independently verified','failed rollback escalated']};
+  const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,failedRollbackCaseId:fourth.id,retryCaseId:retry.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected','rollback recovery independently verified','failed rollback escalated','second PR for the same incident verified']};
   await mkdir('test-results',{recursive:true});await writeFile('test-results/sdlc-integration-report.json',JSON.stringify(report,null,2));console.log('SDLC 7/7: PASS ciclo integrado e cenário de rollback. Relatório em test-results/sdlc-integration-report.json.');
   if(process.argv.includes('--preview')){console.log('Prévia isolada, GitHub/agente controlados: '+base+'/sdlc');await Promise.race([once(process,'SIGINT'),once(process,'SIGTERM')]);}
 }catch(error){console.error(error instanceof Error?error.message:'SDLC integration failed');if(appLog)console.error(appLog.slice(-1500));process.exitCode=1;}

@@ -79,3 +79,7 @@ CREATE TABLE IF NOT EXISTS sdlc_receipts (
   id text PRIMARY KEY, case_id text NOT NULL REFERENCES remediation_cases(id),
   payload jsonb NOT NULL, accepted_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE remediation_cases DROP CONSTRAINT IF EXISTS remediation_cases_incident_id_key;
+ALTER TABLE remediation_cases ADD COLUMN IF NOT EXISTS attempt integer NOT NULL DEFAULT 1;
+ALTER TABLE remediation_cases ADD COLUMN IF NOT EXISTS previous_case_id text REFERENCES remediation_cases(id);
+CREATE UNIQUE INDEX IF NOT EXISTS remediation_cases_attempt ON remediation_cases(incident_id,attempt);

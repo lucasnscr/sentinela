@@ -8,8 +8,10 @@ export interface RemediationCase {
   artifactDigest:string|null;deploymentId:string|null;verificationStartedAt:string|null;
   verificationDeadline:string|null;lastSampleAt:string|null;healthySamples:number;result:string|null;
   rollbackStartedAt?:string;rollbackDeadline?:string;lastRollbackSampleAt?:string|null;rollbackSamples?:number;
+  attempt?:number;previousCaseId?:string|null;
 }
 export interface SdlcSettings {
   enabled:boolean;repository:string;environment:string;services:string[];
   githubTokenEnv:string;verifyTimeoutMs:number;
+  maxAttempts?:number;
 }
