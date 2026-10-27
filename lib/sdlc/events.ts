@@ -33,7 +33,13 @@ export async function acceptLifecycleEvent(input:unknown,settings:SdlcSettings=s
           item.result='Deploy recebido; aguardando três novas amostras saudáveis da aplicação.';
         }else if(message.type==='deployment.rolled_back'){
           if(!['deploying','verifying','regressed','verified'].includes(item.state))throw new Error('Rollback fora de ordem.');
-          item.state='rolled_back';item.result='Pipeline informou rollback do deploy corretivo. A correção permanece não verificada.';
+          item.state='rollback_verifying';item.rollbackStartedAt=new Date().toISOString();item.rollbackDeadline=new Date(Date.now()+settings.verifyTimeoutMs).toISOString();item.rollbackSamples=0;item.lastRollbackSampleAt=null;
+          item.result='Rollback recebido; aguardando novas observações da aplicação. A correção permanece não verificada.';
+        }else if(message.type==='deployment.rollback_failed'){
+          if(!['deploying','verifying','regressed','verified','rollback_verifying'].includes(item.state))throw new Error('Falha de rollback fora de ordem.');
+          item.state='rollback_failed';item.result='Escalonamento: pipeline não confirmou o rollback. Intervenção humana necessária.';
+          await client.query("UPDATE incidents SET severity='critical' WHERE id=$1",[item.incidentId]);
+          await client.query('INSERT INTO events(id,incident_id,kind,title,detail) VALUES(gen_random_uuid()::text,$1,$2,$3,$4)',[item.incidentId,'escalation','Rollback não confirmado',item.result]);
         }else{
           if(!['deploying','verifying'].includes(item.state))throw new Error('Falha de deploy fora de ordem.');
           item.state='regressed';item.result='Pipeline não confirmou a entrega. A correção permanece não verificada.';

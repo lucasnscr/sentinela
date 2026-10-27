@@ -50,7 +50,7 @@ test('SHA, artefato e deploy ficam vinculados; somente novas amostras verificam 
     await new Promise(resolve=>setTimeout(resolve,3));const first={...old,at:new Date().toISOString()};await verifySdlcCases([first]);await verifySdlcCases([first]);assert.equal((await getCase(item.id))?.healthySamples,1);
     for(let i=0;i<2;i++){await new Promise(resolve=>setTimeout(resolve,3));await verifySdlcCases([{...old,at:new Date().toISOString()}]);}
     item=(await getCase(item.id))!;assert.equal(item.state,'verified');assert.equal(item.commitSha,base.commitSha);assert.equal(item.deploymentId,'d1');
-    await send('deployment.rolled_back',release);assert.equal((await getCase(item.id))?.state,'rolled_back');
+    await send('deployment.rolled_back',release);assert.equal((await getCase(item.id))?.state,'rollback_verifying');
   }finally{await context.cleanup();}
 });
 test('timeout sem dados marca regressão e rollback nunca vira correção verificada',async()=>{
@@ -61,6 +61,6 @@ test('timeout sem dados marca regressão e rollback nunca vira correção verifi
     const send=(type:string)=>acceptLifecycleEvent({...base,type,id:type+':'+item.id,...(type.startsWith('deployment.')?{deploymentId:'timeout-test',artifactDigest:'sha256:'+'3'.repeat(64)}:{})},settings);
     await send('implementation.published');await send('deployment.started');await send('deployment.completed');
     const waiting=(await getCase(item.id))!;waiting.verificationDeadline=new Date(0).toISOString();await saveCase(waiting);
-    await verifySdlcCases([]);assert.equal((await getCase(item.id))?.state,'regressed');await send('deployment.rolled_back');assert.equal((await getCase(item.id))?.state,'rolled_back');
+    await verifySdlcCases([]);assert.equal((await getCase(item.id))?.state,'regressed');await send('deployment.rolled_back');assert.equal((await getCase(item.id))?.state,'rollback_verifying');
   }finally{await context.cleanup();}
 });
