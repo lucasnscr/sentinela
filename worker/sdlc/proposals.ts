@@ -21,6 +21,7 @@ export async function prepareProposal(input:unknown,settings:SdlcSettings){
       if(previous.repository!==settings.repository||previous.environment!==settings.environment)throw new Error('Tentativa anterior fora do escopo.');
       if(previous.id===parsed.previousCaseId){
         if(!retryableStates.includes(previous.state))throw new Error('A tentativa atual ainda não permite outra correção.');
+        if(previous.state==='abandoned'&&previous.pullRequestNumber&&!previous.developmentClosedAt)throw new Error('Encerre a PR no GitHub antes de outra tentativa.');
         if(attempt>=(settings.maxAttempts||3))throw new Error('Limite de tentativas atingido; escale para o mantenedor.');
         parent=previous.id;attempt++;previous=null;
       }else if(previous.previousCaseId!==parsed.previousCaseId||previous.state!=='proposed')throw new Error('Use a tentativa mais recente como origem.');
