@@ -4,6 +4,7 @@ import {pool,event as audit} from '../db';
 import {sdlcSettings} from './configuration';
 import {fromCaseRow} from './store';
 import type {SdlcSettings} from './types';
+import {isCurrentAttempt} from './attempts';
 export async function acceptLifecycleEvent(input:unknown,settings:SdlcSettings=sdlcSettings()){
   if(!settings.enabled)throw new Error('Integração SDLC desabilitada.');
   const message=validateEvent(input);
@@ -14,7 +15,8 @@ export async function acceptLifecycleEvent(input:unknown,settings:SdlcSettings=s
     if(!rows[0])throw new Error('Caso não encontrado.');const item=fromCaseRow(rows[0]);
     if(message.repository!==item.repository||message.repository!==settings.repository||message.issueNumber!==item.issueNumber||message.proposalHash!==item.proposalHash||message.service!==item.service||message.environment!==item.environment)throw new Error('Identidade da mudança não corresponde ao caso.');
     const previous=await client.query('SELECT payload FROM sdlc_receipts WHERE id=$1',[message.id]);
-    if(previous.rows.length){const {at:_old,...old}=previous.rows[0].payload;const {at:_new,...current}=message;if(!isDeepStrictEqual(old,current))throw new Error('ID de evento reutilizado com outro conteúdo.');await client.query('COMMIT');return item;}
+    if(previous.rows.length){const {at:_old,...old}=previous.rows[0].payload;const {at:_new,...current}=message;if(!isDeepStrictEqual(old,current))throw new Error('ID de evento reutilizado com outro conteúdo.');await client.query('COMMIT');return {...item,receiptReplayed:true};}
+    if(!await isCurrentAttempt(item,client))throw new Error('A tentativa foi substituída; consulte o caso atual.');
     if(message.type==='implementation.published'){
       if(!['issue_open','pr_open'].includes(item.state))throw new Error('Evento de implementação fora de ordem.');
       if(item.pullRequestNumber&&item.pullRequestNumber!==message.pullRequestNumber)throw new Error('A PR vinculada não pode ser trocada.');
@@ -50,6 +52,6 @@ export async function acceptLifecycleEvent(input:unknown,settings:SdlcSettings=s
     await client.query('INSERT INTO sdlc_receipts(id,case_id,payload) VALUES($1,$2,$3)',[message.id,item.id,JSON.stringify(message)]);
     if(message.type.startsWith('deployment.'))await client.query("INSERT INTO evidence(id,kind,service,title,detail,data) VALUES($1,'change',$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING",['sdlc:'+message.id,item.service,'Deploy corretivo: '+message.type,`${item.repository} / PR #${item.pullRequestNumber} / ${item.commitSha}`,JSON.stringify(message)]);
     await client.query('UPDATE remediation_cases SET state=$2,payload=$3,updated_at=now() WHERE id=$1',[item.id,item.state,JSON.stringify(item)]);
-    await client.query('COMMIT');await audit('sdlc','Mudança recebida do pipeline',message.type+' / '+message.commitSha,item.incidentId);return item;
+    await client.query('COMMIT');await audit('sdlc','Mudança recebida do pipeline',message.type+' / '+message.commitSha,item.incidentId);return {...item,receiptReplayed:false};
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
