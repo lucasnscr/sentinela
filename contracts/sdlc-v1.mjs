@@ -17,7 +17,7 @@ export function extractCase(body){
 }
 export function validateEvent(input){
   if(!input||input.protocol!==protocol)fail('Unsupported SDLC protocol');
-  const types=['implementation.published','deployment.started','deployment.completed','deployment.failed','deployment.rolled_back'];
+  const types=['implementation.published','deployment.started','deployment.completed','deployment.failed','deployment.rolled_back','deployment.rollback_failed'];
   if(!types.includes(input.type))fail('Invalid lifecycle event');
   const type=input.type;
   const id=string(input.id,'event ID',180);if(!/^[A-Za-z0-9:_.-]+$/.test(id))fail('Invalid event ID');
