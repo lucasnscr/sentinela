@@ -1,3 +1,4 @@
+import {policySnapshot} from '../../lib/sdlc/recovery-policy';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {pool,findIncident} from '../../lib/db';
@@ -8,7 +9,7 @@ import type {RemediationCase,SdlcSettings} from '../../lib/sdlc/types';
 const schema=z.object({incidentId:z.uuid(),previousCaseId:z.uuid().optional(),kind:z.enum(['application','configuration']),summary:z.string().trim().min(10).max(1500),acceptanceCriteria:z.array(z.string().trim().min(5).max(300)).min(1).max(12),evidenceIds:z.array(z.string().max(150)).max(12)});
 export async function prepareProposal(input:unknown,settings:SdlcSettings){
   const parsed=schema.parse(input),incident=await findIncident(parsed.incidentId);
-  if(!incident||!settings.services.includes(incident.service))throw new Error('Incidente fora do escopo de integração.');
+  if(!incident||incident.environment!==settings.environment||!settings.services.includes(incident.service))throw new Error('Incidente fora do escopo de integração.');
   const evidence=parsed.evidenceIds.map(id=>{const item=incident.evidence.find(value=>value.id===id);if(!item)throw new Error('Evidência não pertence ao incidente.');return {id:item.id,kind:item.kind,summary:item.title.slice(0,160)};});
   const client=await pool.connect();
   try{
@@ -27,7 +28,7 @@ export async function prepareProposal(input:unknown,settings:SdlcSettings){
       }else if(previous.previousCaseId!==parsed.previousCaseId||previous.state!=='proposed')throw new Error('Use a tentativa mais recente como origem.');
     }else if(previous&&previous.state!=='proposed'){await client.query('COMMIT');return previous;}
     const now=new Date().toISOString();const item:RemediationCase={
-      ...renderProposal({id:previous?.id||randomUUID(),incidentId:incident.id,repository:settings.repository,service:incident.service,environment:settings.environment,kind:parsed.kind,summary:parsed.summary,acceptanceCriteria:parsed.acceptanceCriteria,evidence,attempt,previousCaseId:parent}),
+      ...renderProposal({id:previous?.id||randomUUID(),incidentId:incident.id,repository:settings.repository,service:incident.service,environment:settings.environment,kind:parsed.kind,summary:parsed.summary,acceptanceCriteria:parsed.acceptanceCriteria,evidence,attempt,previousCaseId:parent,...policySnapshot(incident.service,settings.environment,settings.verifyTimeoutMs)}),
       state:'proposed',createdAt:previous?.createdAt||now,updatedAt:now,issueNumber:null,issueUrl:null,pullRequestNumber:null,implementationSha:null,commitSha:null,artifactDigest:null,deploymentId:null,verificationStartedAt:null,verificationDeadline:null,lastSampleAt:null,healthySamples:0,result:null,
     };
     await client.query("INSERT INTO remediation_cases(id,incident_id,state,payload,attempt,previous_case_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=now() WHERE remediation_cases.state='proposed'",[item.id,incident.id,item.state,JSON.stringify(item),attempt,parent]);

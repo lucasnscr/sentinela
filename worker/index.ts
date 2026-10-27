@@ -13,7 +13,7 @@ import { samplePrometheus } from './prometheus';
 import { startTelemetry, stopTelemetry } from './observability';
 import { createOperations } from './operations';
 import {createSdlc} from './sdlc';
-import {verifySdlcCases} from './sdlc/verification';
+import {verifySdlcCases,canCloseSdlcIncident} from './sdlc/verification';
 import {publishLearning} from './sdlc/learning';
 import {cancelDevelopment,reconcileDevelopment} from './sdlc/development';
 
@@ -72,7 +72,7 @@ async function monitor(){
     const metric=metrics.find(m=>m.service===incident.service);
     if(incident.environment===environment&&metric&&isHealthy(metric)){
       const count=(healthy.get(incident.id)||0)+(lastHealthy.get(incident.id)===metric.at?0:1);healthy.set(incident.id,count);lastHealthy.set(incident.id,metric.at);
-      if(count>=3&&!running.has(incident.id))await closeIncident(incident.id);
+      if(count>=3&&!running.has(incident.id)&&await canCloseSdlcIncident(incident.id))await closeIncident(incident.id);
     }else{healthy.set(incident.id,0);lastHealthy.delete(incident.id);}
     if(incident.status==='investigating'&&incident.stage==='inconclusive'&&incident.attempts<3&&Date.now()-new Date(incident.updatedAt).getTime()>60000)launch(incident.id);
   }
