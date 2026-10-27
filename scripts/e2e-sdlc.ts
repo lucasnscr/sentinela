@@ -11,6 +11,7 @@ import {once} from 'node:events';
 import pg from 'pg';
 import {config} from '../lib/config';
 import {catalogFixture} from './sdlc-test/catalog.mjs';
+import {exerciseDevelopment} from './sdlc-test/development.mjs';
 import {exerciseLearning} from './sdlc-test/learning.mjs';
 import {waitFor} from './sdlc-test/process.mjs';
 import type {Snapshot} from '../lib/domain';
@@ -25,13 +26,14 @@ let app:ChildProcess|undefined,catalog:Awaited<ReturnType<typeof catalogFixture>
 try{
   await admin.connect();await admin.query('CREATE DATABASE "'+database+'"');created=true;
   console.log('SDLC 1/7: build e deploy de uma regressão controlada no catálogo Java.');
-  catalog=await catalogFixture(path.resolve(peer),suffix);await catalog.failed();
+  catalog=await catalogFixture(path.resolve(peer),suffix);await catalog.failed();await catalog.seedReference();
   const stateFile=path.join(directory,'github.json');await writeFile(stateFile,JSON.stringify({repository:repo,issues:[]}));
   const gh=path.join(directory,'gh-contract');await writeFile(gh,'#!/usr/bin/env node\n'+await readFile('scripts/sdlc-test/github-cli.mjs','utf8'));await chmod(gh,0o700);
   const server=net.createServer();await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const port=(server.address() as net.AddressInfo).port;await new Promise<void>(resolve=>server.close(()=>resolve()));
   const base='http://127.0.0.1:'+port,url=new URL(config.databaseUrl);url.pathname='/'+database;
+  const recoveryPolicy={version:'catalog-business-v1',stabilityMs:5000,maxSampleGapMs:20000,probes:[{id:'catalog-business',kind:'business',url:catalog.url+'/api/products',status:200},{id:'catalog-data',kind:'data',url:catalog.url+'/api/products',status:200,assertions:[{pointer:'/totalElements',op:'min',value:1},{pointer:'/content/0/sku',op:'equals',value:'REF-OPERATIONS'}]}]};
   const env={...process.env,DATABASE_URL:url.toString(),PORT:String(port),APP_ORIGINS:base,MONITOR_INTERVAL_MS:'1000',LAB_ENABLED:'false',OPERATIONS_ENABLED:'false',AI_MODE:'rules',AI_PROVIDER:'none',EMBEDDING_PROVIDER:'none',
-    PROMETHEUS_URL:catalog.prometheusUrl,MONITORED_SERVICES:'catalog-api',MONITORED_ENVIRONMENT:'contract-test',SDLC_ENABLED:'true',SDLC_REPOSITORY:repo,SDLC_ENVIRONMENT:'contract-test',SDLC_SERVICES:'catalog-api',SDLC_VERIFY_TIMEOUT_MS:'30000',
+    PROMETHEUS_URL:catalog.prometheusUrl,MONITORED_SERVICES:'catalog-api',MONITORED_ENVIRONMENT:'contract-test',SDLC_ENABLED:'true',SDLC_REPOSITORY:repo,SDLC_ENVIRONMENT:'contract-test',SDLC_SERVICES:'catalog-api',SDLC_VERIFY_TIMEOUT_MS:'30000',SDLC_RECOVERY_POLICIES_JSON:JSON.stringify([{service:'catalog-api',environment:'contract-test',policy:recoveryPolicy}]),
     SDLC_GH_BIN:gh,SDLC_CONTRACT_STATE:stateFile,SENTINELA_GITHUB_TOKEN:'contract-only-not-a-real-key',OPERATIONS_API_TOKEN:token,SDLC_CALLBACK_TOKEN:callback,
     OPENAI_API_KEY:'',ANTHROPIC_API_KEY:'',GEMINI_API_KEY:'',GH_TOKEN:'',GITHUB_TOKEN:''};
   app=spawn(process.execPath,['--import','tsx','scripts/dev.ts'],{env,stdio:['ignore','pipe','pipe']});app.stdout?.on('data',chunk=>{appLog=(appLog+chunk).slice(-4000);});app.stderr?.on('data',chunk=>{appLog=(appLog+chunk).slice(-4000);});
@@ -70,8 +72,9 @@ try{
   await notifyImplementation({env:deliveryEnv,api,event:ciEvent()});await notifyImplementation({env:deliveryEnv,api,event:ciEvent()});
   let deployments=0;await assert.rejects(deliver({env:deliveryEnv,api,deploy:async()=>{deployments++;},rollback:async()=>{}}),/merge/);assert.equal(deployments,0);
   merged=true;
-  const verified=await deliver({env:deliveryEnv,api,deploy:async()=>{deployments++;await catalog!.use(catalog!.fixedImage);},rollback:async()=>catalog!.use(catalog!.badImage),verifyOptions:{timeoutMs:90000,pollMs:500}});
-  assert.equal(verified.state,'verified');assert.equal(verified.commitSha,fixed.integratedSha);assert.notEqual(fixed.sha,fixed.integratedSha);assert.equal(deployments,1);
+  let wrongDataRejected=false,dataCorrection:Promise<void>=Promise.resolve();
+  const verified=await deliver({env:deliveryEnv,api,deploy:async()=>{deployments++;await catalog!.use(catalog!.fixedImage);await catalog!.referenceSku('WRONG-REFERENCE');dataCorrection=waitFor('dados incorretos recusados',async()=>{const item=(await cases()).find(value=>value.id===first.id);return item?.lastRecoveryCheck?.checks.some(check=>check.id==='catalog-data'&&!check.passed)&&item.state==='verifying';},20000).then(async()=>{wrongDataRejected=true;await catalog!.referenceSku('REF-OPERATIONS');});void dataCorrection.catch(()=>{});},rollback:async()=>catalog!.use(catalog!.badImage),verifyOptions:{timeoutMs:90000,pollMs:500}});
+  await dataCorrection;assert.equal(verified.state,'verified');assert.equal(verified.commitSha,fixed.integratedSha);assert.notEqual(fixed.sha,fixed.integratedSha);assert.equal(deployments,1);assert.equal(wrongDataRejected,true);assert.ok(verified.recovery.stableForMs>=5000);
   console.log('SDLC 4/7: PR/CI vinculadas, gate de merge preservado e deploy corretivo verificado com três amostras novas.');
   const learning=await exerciseLearning({base,token,callback,item:(await cases()).find(item=>item.id===first.id)!,peer,catalog,repo,stateFile});
   await catalog.use(catalog.badImage);const second=await prepareCase([first.incidentId]);
@@ -108,19 +111,8 @@ try{
   assert.equal(failedRollbacks,1);assert.equal((await cases()).find(item=>item.id===fourth.id)?.state,'rollback_failed');
   assert.ok((await snapshot()).events.some(event=>event.kind==='escalation'&&event.incidentId===fourth.incidentId));
   console.log('FASE 1 PASS: rollback saudável confirmado e reversão sem recuperação escalada.');
-  await command({kind:'sdlc_propose',requestId:randomUUID(),incidentId:fourth.incidentId,previousCaseId:fourth.id,correctionKind:'application',summary:'Nova hipótese após falha de rollback; acompanhar CI e encerramento.',acceptanceCriteria:['Não entregar uma PR reprovada ou encerrada.'],evidenceIds:[]});
-  const outcome=(await cases()).find(item=>item.previousCaseId===fourth.id)!;
-  await command({kind:'sdlc_publish',requestId:randomUUID(),caseId:outcome.id,proposalHash:outcome.proposalHash});
-  const published=(await cases()).find(item=>item.id===outcome.id)!;
-  currentIssue=JSON.parse(await readFile(stateFile,'utf8')).issues.find((value:any)=>value.number===published.issueNumber);currentSha=fixed.sha;prNumber=12;merged=false;
-  const failedCi=ciEvent();failedCi.workflow_run.id=50;failedCi.workflow_run.conclusion='failure';
-  await notifyImplementation({env:deliveryEnv,api,event:failedCi});assert.equal((await cases()).find(item=>item.id===outcome.id)?.state,'ci_failed');
-  const goodCi=ciEvent();goodCi.workflow_run.id=51;await notifyImplementation({env:deliveryEnv,api,event:goodCi});
-  await notifyImplementation({env:deliveryEnv,api,event:failedCi});assert.equal((await cases()).find(item=>item.id===outcome.id)?.state,'pr_open');
-  prClosed=true;await notifyImplementation({env:deliveryEnv,api,event:{action:'closed',pull_request:{number:12,head:{sha:currentSha}}}});
-  assert.equal((await cases()).find(item=>item.id===outcome.id)?.state,'cancelled');
-  console.log('FASE 3 PASS: CI falha/retoma, evento antigo ignorado e PR encerrada bloqueada.');
-  const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,failedRollbackCaseId:fourth.id,retryCaseId:retry.id,learning,developmentOutcomeCaseId:outcome.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected','rollback recovery independently verified','failed rollback escalated','second PR for the same incident verified','failed CI and rejected PR synchronized','reviewed learning generated and regression red/green']};
+  const outcome=await exerciseDevelopment({command,cases,fourth,fixed,stateFile,deliveryEnv,api,notifyImplementation,ciEvent,setContext:(issue:any,sha:string,number:number,closed:boolean)=>{currentIssue=issue;currentSha=sha;prNumber=number;merged=false;prClosed=closed;}});
+  const report={protocol:'sentinela-sdlc/v1',result:'passed',repositories:[repo,'lucasnscr/sentinela'],real:['Java HTTP','PostgreSQL','Prometheus','Next.js worker','MCP','governed implementation wrapper','regression tests','Docker replacement','verification','rollback'],controlled:['GitHub API','agent response','maintainer approval','frozen telemetry proxy'],caseId:first.id,implementationSha:fixed.sha,commitSha:fixed.integratedSha,artifactDigest:fixed.digest,healthySamples:verified.healthySamples,businessDataVerified:wrongDataRejected,stabilityMs:verified.recovery.stableForMs,rollbackCaseId:second.id,staleTelemetryCaseId:third.id,failedRollbackCaseId:fourth.id,retryCaseId:retry.id,learning,developmentOutcomeCaseId:outcome.id,checks:['merged SHA differs from implementation SHA','missing CI callback reconciled','frozen healthy telemetry rejected','rollback recovery independently verified','failed rollback escalated','second PR for the same incident verified','failed CI and rejected PR synchronized','reviewed learning generated and regression red/green','HTTP 200 wrong data rejected before stable recovery']};
   await mkdir('test-results',{recursive:true});await writeFile('test-results/sdlc-integration-report.json',JSON.stringify(report,null,2));console.log('SDLC 7/7: PASS ciclo integrado e cenário de rollback. Relatório em test-results/sdlc-integration-report.json.');
   if(process.argv.includes('--preview')){console.log('Prévia isolada, GitHub/agente controlados: '+base+'/sdlc');await Promise.race([once(process,'SIGINT'),once(process,'SIGTERM')]);}
 }catch(error){console.error(error instanceof Error?error.message:'SDLC integration failed');if(appLog)console.error(appLog.slice(-1500));process.exitCode=1;}

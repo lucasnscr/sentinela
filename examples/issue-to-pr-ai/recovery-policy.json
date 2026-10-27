@@ -1,0 +1,33 @@
+[
+  {
+    "service": "catalog-api",
+    "environment": "staging",
+    "policy": {
+      "version": "catalog-business-v1",
+      "minimumSamples": 3,
+      "stabilityMs": 60000,
+      "maxSampleGapMs": 15000,
+      "probes": [
+        {
+          "id": "catalog-list",
+          "kind": "business",
+          "url": "https://catalog.example.com/api/products",
+          "status": 200,
+          "headerEnv": "SENTINELA_PROBE_CATALOG"
+        },
+        {
+          "id": "catalog-reference-data",
+          "kind": "data",
+          "url": "https://catalog.example.com/api/products?category=sentinela",
+          "status": 200,
+          "headerEnv": "SENTINELA_PROBE_CATALOG",
+          "assertions": [
+            {"pointer": "/totalElements", "op": "equals", "value": 1},
+            {"pointer": "/content/0/sku", "op": "equals", "value": "REF-OPERATIONS"},
+            {"pointer": "/content/0/price", "op": "equals", "value": 19.9}
+          ]
+        }
+      ]
+    }
+  }
+]

@@ -17,7 +17,7 @@ export async function catalogFixture(peer,suffix){
   const badSha=(await git(['rev-parse','HEAD'])).output;await run('node',['scripts/install-git-hooks.mjs'],{cwd:checkout,quiet:true});
   const network='sentinela-sdlc-'+suffix,db=network+'-db',api=network+'-api',prom=network+'-prom';
   const badImage='sentinela-sdlc-bad:'+suffix,fixedImage='sentinela-sdlc-fixed:'+suffix;
-  const docker=(args,options={})=>run('docker',args,{quiet:true,...options});let active='';let load,telemetry;
+  const docker=(args,options={})=>run('docker',args,{quiet:true,...options});let active='',apiPort='';let load,telemetry;
   async function cleanup(){if(load)clearInterval(load);await telemetry?.close();for(const name of [api,prom,db])await docker(['rm','-f',name],{allowFailure:true});await docker(['network','rm',network],{allowFailure:true});await docker(['image','rm',badImage,fixedImage],{allowFailure:true});await rm(directory,{recursive:true,force:true});}
   try{
   await docker(['network','create',network]);
@@ -26,10 +26,10 @@ export async function catalogFixture(peer,suffix){
   await run('docker',['build','-t',badImage,checkout],{quiet:true});
   async function deploy(image){
     if(active)await docker(['rm','-f',api]);
-    await docker(['run','-d','--name',api,'--network',network,'--network-alias','catalog-under-test','-p','127.0.0.1::8080',
+    await docker(['run','-d','--name',api,'--network',network,'--network-alias','catalog-under-test','-p','127.0.0.1:'+apiPort+':8080',
       '-e','DATABASE_URL=jdbc:postgresql://'+db+':5432/catalog','-e','DEPLOYMENT_ENVIRONMENT=contract-test','-e','DATABASE_USER=catalog','-e','DATABASE_PASSWORD=catalog','-e','JAVA_TOOL_OPTIONS=-Dsentinela.contract.failure=true',image]);active=image;
     const binding=JSON.parse((await docker(['inspect',api])).output)[0].NetworkSettings.Ports['8080/tcp'][0].HostPort;
-    const url='http://127.0.0.1:'+binding;
+    apiPort=binding;const url='http://127.0.0.1:'+binding;
     await waitFor('catalog HTTP',async()=>{const response=await fetch(url+'/actuator/health/readiness',{signal:AbortSignal.timeout(2000)});return response.ok;});return url;
   }
   let base=await deploy(badImage);
@@ -42,7 +42,9 @@ export async function catalogFixture(peer,suffix){
   const promPort=JSON.parse((await docker(['inspect',prom])).output)[0].NetworkSettings.Ports['9090/tcp'][0].HostPort;
   telemetry=await telemetryProxy('http://127.0.0.1:'+promPort);
   const digest=async image=>{const id=(await docker(['image','inspect',image,'--format','{{.Id}}'])).output;assert.match(id,/^sha256:[a-f0-9]{64}$/);return id;};
-  return {checkout,directory,badSha,badImage,fixedImage,prometheusUrl:telemetry.url,
+  return {checkout,directory,badSha,badImage,fixedImage,prometheusUrl:telemetry.url,get url(){return base;},
+    async seedReference(){const response=await fetch(base+'/api/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sku:'REF-OPERATIONS',name:'Operational reference',category:'sentinela',price:19.9})});assert.equal(response.status,201);},
+    async referenceSku(sku){assert.ok(['REF-OPERATIONS','WRONG-REFERENCE'].includes(sku));await docker(['exec',db,'psql','-U','catalog','-d','catalog','-c',"UPDATE products SET sku='"+sku+"' WHERE name='Operational reference'"]);},
     freezeHealthyTelemetry:()=>telemetry.freezeHealthy(),resumeTelemetry:()=>telemetry.resume(),
     async failed(){assert.equal((await fetch(base+'/api/products')).status,503);},
     async implement(issue){
