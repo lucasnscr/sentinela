@@ -14,6 +14,7 @@ import { startTelemetry, stopTelemetry } from './observability';
 import { createOperations } from './operations';
 import {createSdlc} from './sdlc';
 import {verifySdlcCases} from './sdlc/verification';
+import {publishLearning} from './sdlc/learning';
 import {cancelDevelopment,reconcileDevelopment} from './sdlc/development';
 
 startTelemetry();
@@ -105,6 +106,8 @@ async function commands(){
       try{await investigator.review(id,command.payload.approve===true);}finally{running.delete(id);}
     }else if(command.kind==='sdlc_propose')await sdlc.propose({...command.payload,kind:command.payload.correctionKind});
     else if(command.kind==='sdlc_publish')await sdlc.publish(command.payload.caseId,command.payload.proposalHash);
+    else if(command.kind==='sdlc_learning_reconcile')await publishLearning(command.payload.caseId,command.payload.version,command.payload.hash,undefined,undefined,true);
+    else if(command.kind==='sdlc_learning_publish')await publishLearning(command.payload.caseId,command.payload.version,command.payload.hash);
     else if(command.kind==='sdlc_cancel')await cancelDevelopment(command.payload.caseId,command.payload.proposalHash,command.payload.reason);
     else if(command.kind==='sdlc_reconcile')await sdlc.reconcile(command.payload.caseId);
     else if(command.kind==='operation_plan')await operations.plan(command.payload as {targetId:string;action:'restart'|'scale'|'start';replicas?:number;requestId:string});

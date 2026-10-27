@@ -1,6 +1,6 @@
 import {spawn} from 'node:child_process';
 import type {SdlcSettings,RemediationCase} from '../../lib/sdlc/types';
-export interface IssueClient {find(item:RemediationCase):Promise<{number:number;url:string}|null>;create(item:RemediationCase):Promise<{number:number;url:string}>}
+export interface IssueClient {find(item:RemediationCase):Promise<{number:number;url:string}|null>;create(item:RemediationCase,title?:string):Promise<{number:number;url:string}>}
 export function githubIssues(settings:SdlcSettings):IssueClient {
   async function api(args:string[],body?:unknown):Promise<any>{
     const token=process.env[settings.githubTokenEnv];if(!token)throw new Error('Credencial de publicação GitHub não configurada.');
@@ -25,6 +25,6 @@ export function githubIssues(settings:SdlcSettings):IssueClient {
       if(found.length>1)throw new Error('Há mais de uma issue para este caso; confira a vinculação.');
       return found[0]?issue(item,found[0]):null;
     },
-    async create(item){return issue(item,await api([`repos/${item.repository}/issues`,'--method','POST','--input','-'],{title:`Correção operacional: ${item.service}`,body:item.proposalBody,labels:[]}));},
+    async create(item,title=`Correção operacional: ${item.service}`){return issue(item,await api([`repos/${item.repository}/issues`,'--method','POST','--input','-'],{title,body:item.proposalBody,labels:[]}));},
   };
 }

@@ -5,6 +5,7 @@ import type {RemediationCase,SdlcSettings} from '../../lib/sdlc/types';
 import {githubIssues,type IssueClient} from './github';
 import {prepareProposal} from './proposals';
 export async function createSdlc(settings:SdlcSettings=sdlcSettings(),issues:IssueClient=githubIssues(settings)){
+  if(settings.enabled)await pool.query("UPDATE sdlc_learning SET payload=jsonb_set(payload,'{delivery}', '{\"state\":\"uncertain\"}') WHERE payload->'delivery'->>'state'='publishing'");
   if(settings.enabled)await pool.query("UPDATE remediation_cases SET state='publish_uncertain' WHERE state='publishing'");
   function enabled(){if(!settings.enabled)throw new Error('Integração SDLC desabilitada.');}
   async function bind(item:RemediationCase,issue:{number:number;url:string}){

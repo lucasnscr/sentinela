@@ -7,7 +7,7 @@ Cada fase passa por revisão de diff, testes de contrato/PostgreSQL, teste conju
 | 1 | Saúde independente após rollback | Reversão saudável confirmada; falha/ausência escalada; mutação não repetida |
 | 2 | Tentativas sucessivas | Outra PR para o mesmo incidente, com histórico, limite e nova revisão |
 | 3 | Resultados do desenvolvimento | CI/implementação falha, PR encerrada, cancelamento e abandono reconciliados |
-| 4 | Aprendizado revisado | Runbook, caso de avaliação e referência verificável ao teste de regressão, versionados e aprovados |
+| 4 | Aprendizado revisado | Runbook, caso de avaliação e teste de regressão executável, versionados e aprovados |
 | 5 | Resultado de negócio | Critérios por serviço, assertions de dados e janela estável, ligados à política revisada |
 
 ## Fase 1
@@ -35,3 +35,17 @@ O notificador executa somente código da branch padrão, sem checkout de candida
 Cancelamento local exige token de operação, hash revisado e motivo. Com PR vinculada, o encerramento ocorre no GitHub. `SDLC_INACTIVITY_TIMEOUT_MS` marca tentativas sem atividade como `abandoned` e escala uma vez; PR abandonada deve ser encerrada antes de outra correção. CI reprovada pode retomar na mesma PR. Nenhuma dessas transições concede merge, label ou execução de agente.
 
 `SDLC_DEPLOYMENT_TIMEOUT_MS` marca entrega sem confirmação como `deployment_uncertain`. Outra mutação permanece bloqueada. Somente recibo autenticado com o mesmo SHA, digest e deploymentId reconcilia conclusão ou rollback; o operador deve conferir o provedor. O watchdog não executa deploy ou rollback por conta própria.
+
+Fase 3 concluída: PRs Sentinela #10 e issue-to-pr-ai #60, 31 cenários PostgreSQL e teste conjunto aprovado na CI 40429300620.
+
+## Fase 4
+
+O painel de um caso `verified` permite preparar aprendizado: responsável declarado, causa revisada, IDs de evidências do caso, fixture sintética, expectativa de diagnóstico e runbook. Cada versão tem hash de conteúdo/proveniência. Aprovação exige token de operação, versão e hash corrente; editar conteúdo aprovado cria outra versão. O revisor é uma declaração autorizada pelo token, sem equivalência a identidade SSO. O runbook aprovado entra no catálogo lexical, preservando o tratamento de conteúdo como evidência não confiável para instruções.
+
+A exportação exige callback token e correção ainda verificada. Não inclui logs brutos ou segredos de configuração; o operador revisa os campos sintéticos e a redação aplica remoção de padrões comuns de credenciais. A cópia exportada é um registro histórico; antes de novo uso consulte a versão e o estado atuais. O hash verifica integridade, sem substituir autenticação da origem.
+
+No par, `scripts/sentinela/learning.mjs` busca o export e gera teste HTTP Java/Testcontainers, fixture JSON, caso de avaliação, runbook e manifesto com hashes. O perfil inicial é `catalog-java-v1`; outros serviços exigem um perfil implementado e validado. Código Java vem de template confiável; apenas dados estruturados são interpolados como recurso JSON. Destinos derivam de UUID/versão; conflitos e symlinks são recusados. Reenvio idêntico não sobrescreve conteúdo.
+
+A rubrica `cause-action-evidence/v1` mede ação, termos revisados da causa e citações de evidências em uma resposta estruturada, independente de provedor. É um teste determinístico de expectativas, não prova geral de qualidade semântica ou causalidade. O teste conjunto exige que o novo teste Java falhe com HTTP 503 na fonte defeituosa e passe na corrigida, usando PostgreSQL real. A geração automatiza a autoria dos artefatos; commit, CI e revisão de sua PR continuam governados.
+
+Após aprovação, o worker encaminha uma issue própria `sentinela-learning/v1`, sem `ai:ready` nem execução do implementador. No par, `SENTINELA_LEARNING_ENABLED=true` habilita o workflow de aprendizado: controle busca export aprovado, job sem callback gera e valida Maven, publisher regenera os mesmos arquivos e abre PR draft com CI explícita. O padrão permanece desabilitado. Envio incerto só permite conferência; falha anterior ao envio permite consulta/publicação novamente. Nenhum desses caminhos concede merge.
