@@ -20,4 +20,12 @@ Antes do modelo, as dependências da base são instaladas sem scripts para dispo
 
 Relatórios do modelo ficam fora do checkout candidato e o resumo final é copiado para test-results, que não é versionado. Nenhuma chave do diagnóstico é carregada do .env.local para o processo de implementação. Configurar o OpenCode interativo no host não equivale ao isolamento deste fluxo.
 
-Falha ou revogação de autorização interrompe a entrega. Publicação, revisão, merge, deploy e verificação de recuperação continuam sendo etapas distintas. A automação por comentário/runner GitHub será habilitada somente após sua validação específica.
+Falha ou revogação de autorização interrompe a entrega. Publicação, revisão, merge, deploy e verificação de recuperação continuam sendo etapas distintas.
+
+## Entrega pelo GitHub
+
+O workflow AI implementation usa o mesmo SHA revisado do engine. Um comentário /oc em issue aberta com ai:ready é aceito somente de colaborador com escrita, com AI_ENABLED e LOCAL_AI_ENABLED habilitados. O provider local deve estar online, conforme o [runbook de runners descartáveis](https://github.com/lucasnscr/issue-to-pr-ai/blob/main/docs/runbooks/github-local-runner.md).
+
+A geração acontece em VM Linux descartável sem home montado. O patch é congelado antes da validação em runner hospedado. O Sentinela mantém a restrição existente que impede Actions de criar/aprovar PRs: após os testes, um publisher local confere a identidade do workflow e publica com a sessão gh do operador, sem executar o candidato no host. Um recibo hospedado exige a PR correspondente; falha de publicação não é classificada como conclusão.
+
+O diagnóstico operacional continua independente. Não configure o endpoint de diagnóstico para o gateway efêmero da implementação. A fila inicial aceita uma inferência de implementação por vez. Esta infraestrutura permanece desativada até o merge e a execução dos pilotos GitHub; consulte o changelog para evidências reais.
