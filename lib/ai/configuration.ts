@@ -50,7 +50,7 @@ export function parseProviderSettings(env: Environment, role: AiRole): ProviderS
   const dimensions = !generation && rawDimensions ? Number(rawDimensions) : null;
   if (!generation && dimensions !== null && (!Number.isInteger(dimensions) || dimensions < 1 || dimensions > 16000)) configurationError ||= 'EMBEDDING_DIMENSIONS deve ser um inteiro entre 1 e 16000.';
   const responseFormat = env.AI_RESPONSE_FORMAT || 'json_schema';
-  if (!['json_schema', 'json_object', 'prompt'].includes(responseFormat)) configurationError ||= 'AI_RESPONSE_FORMAT inválido.';
+  if (generation && !['json_schema', 'json_object', 'prompt'].includes(responseFormat)) configurationError ||= 'AI_RESPONSE_FORMAT inválido.';
   const rawTimeout = env[prefix + 'TIMEOUT_MS'];
   const timeoutMs = (() => {
     if (rawTimeout === undefined || rawTimeout === '') {

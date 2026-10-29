@@ -90,3 +90,15 @@ test('erro legado da OpenAI não é importado para Anthropic ou Ollama',async()=
 test('modo por regras não executa inferência, mesmo com provedor configurado',async()=>{
   assert.equal((await createAiState(model('ollama'),'rules',store()).availability()).allowed,false);
 });
+test('formato do diagnóstico não invalida embeddings nem altera sua identidade',()=>{
+  const env={EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'nomic-embed-text',EMBEDDING_API_KEY:'test-key'};
+  const baseline=parseProviderSettings(env,'embedding');
+  const embedding=parseProviderSettings({...env,AI_RESPONSE_FORMAT:'invalid'},'embedding');
+  assert.equal(embedding.configured,true);
+  assert.equal(embedding.configurationError,null);
+  assert.equal(embedding.identity,baseline.identity);
+  assert.equal(embedding.embeddingSpace,baseline.embeddingSpace);
+  const diagnosis=parseProviderSettings({AI_PROVIDER:'ollama',AI_MODEL:'qwen3-coder:30b',AI_RESPONSE_FORMAT:'invalid'},'diagnosis');
+  assert.equal(diagnosis.configured,false);
+  assert.match(diagnosis.configurationError||'',/AI_RESPONSE_FORMAT inválido/);
+});
