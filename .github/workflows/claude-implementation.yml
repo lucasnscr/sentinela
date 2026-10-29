@@ -1,0 +1,31 @@
+name: AI implementation
+run-name: 'AI implementation • issue #${{ github.event.issue.number || inputs.issue }}'
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Authorized open issue number
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: claude-ai-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+jobs:
+  implementation:
+    if: vars.AI_ENABLED == 'true' && vars.CLAUDE_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.comment.user.type == 'User')
+    uses: lucasnscr/issue-to-pr-ai/.github/workflows/claude-reusable.yml@d9eb1c46ef805343bd756ea445f7065b82877964
+    with:
+      engine_sha: d9eb1c46ef805343bd756ea445f7065b82877964
+      model: ${{ vars.CLAUDE_MODEL || 'anthropic/claude-sonnet-4-6' }}
+      publish_mode: local
+    secrets:
+      anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      actions: write

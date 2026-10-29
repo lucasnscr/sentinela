@@ -17,9 +17,9 @@ concurrency:
 jobs:
   implementation:
     if: vars.AI_ENABLED == 'true' && vars.LOCAL_AI_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.comment.user.type == 'User')
-    uses: lucasnscr/issue-to-pr-ai/.github/workflows/ollama-reusable.yml@55b1b6cd2aaefa6ddb94ba8144f803f37f053664
+    uses: lucasnscr/issue-to-pr-ai/.github/workflows/ollama-reusable.yml@d9eb1c46ef805343bd756ea445f7065b82877964
     with:
-      engine_sha: 55b1b6cd2aaefa6ddb94ba8144f803f37f053664
+      engine_sha: d9eb1c46ef805343bd756ea445f7065b82877964
       publish_mode: local
     permissions:
       contents: write
