@@ -13,6 +13,8 @@ As variáveis são lidas no início dos processos. Reinicie a interface e o work
 | Modo de contingência | AI_MODE=rules |
 | Protocolo de saída compatível | AI_RESPONSE_FORMAT=json_schema, json_object ou prompt |
 
+AI_TIMEOUT_MS e EMBEDDING_TIMEOUT_MS devem ser valores inteiros entre 100 e 300000 ms. Valores omitidos usam 30000 ms para diagnóstico e 20000 ms para embeddings. Valores inválidos resultam em erro de configuração, em vez de substituição silenciosa dos valores.
+
 AI_API_KEY e EMBEDDING_API_KEY também podem ser fornecidas pelo ambiente do servidor. AI_API_KEY_ENV e EMBEDDING_API_KEY_ENV permitem indicar o nome de uma variável de credencial já provisionada. As chaves nunca são enviadas no snapshot da interface.
 
 | Adaptador | Diagnóstico | Embeddings | Endpoint padrão | Credencial padrão |
