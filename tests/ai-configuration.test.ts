@@ -90,3 +90,51 @@ test('erro legado da OpenAI não é importado para Anthropic ou Ollama',async()=
 test('modo por regras não executa inferência, mesmo com provedor configurado',async()=>{
   assert.equal((await createAiState(model('ollama'),'rules',store()).availability()).allowed,false);
 });
+test('AI_RESPONSE_FORMAT inválido não afeta configuração válida de embeddings',()=>{
+  // Testar que embedding com AI_RESPONSE_FORMAT=invalid continua funcionando
+  const embedding = parseProviderSettings({
+    EMBEDDING_PROVIDER:'ollama',
+    EMBEDDING_MODEL:'nomic-embed-text',
+    EMBEDDING_API_KEY: 'test-key',
+    AI_RESPONSE_FORMAT:'invalid'
+  },'embedding');
+  
+  // Embedding deve continuar configurado com sucesso mesmo com AI_RESPONSE_FORMAT inválido
+  assert.ok(embedding.configured);
+  assert.equal(embedding.configurationError, null);
+  
+  // Diagnóstico com AI_RESPONSE_FORMAT=invalid deve falhar
+  const diagnosis = parseProviderSettings({
+    AI_PROVIDER:'ollama',
+    AI_MODEL:'qwen3-coder:30b',
+    AI_API_KEY: 'test-key',
+    AI_RESPONSE_FORMAT:'invalid'
+  },'diagnosis');
+  
+  assert.equal(diagnosis.configured, false);
+  assert.match(diagnosis.configurationError || '', /AI_RESPONSE_FORMAT inválido/);
+});
+test('AI_RESPONSE_FORMAT inválido não afeta configuração válida de embeddings',()=>{
+  // Testar que embedding com AI_RESPONSE_FORMAT=invalid continua funcionando
+  const embedding = parseProviderSettings({
+    EMBEDDING_PROVIDER:'ollama',
+    EMBEDDING_MODEL:'nomic-embed-text',
+    EMBEDDING_API_KEY: 'test-key',
+    AI_RESPONSE_FORMAT:'invalid'
+  },'embedding');
+  
+  // Embedding deve continuar configurado com sucesso mesmo com AI_RESPONSE_FORMAT inválido
+  assert.ok(embedding.configured);
+  assert.equal(embedding.configurationError, null);
+  
+  // Diagnóstico com AI_RESPONSE_FORMAT=invalid deve falhar
+  const diagnosis = parseProviderSettings({
+    AI_PROVIDER:'ollama',
+    AI_MODEL:'qwen3-coder:30b',
+    AI_API_KEY: 'test-key',
+    AI_RESPONSE_FORMAT:'invalid'
+  },'diagnosis');
+  
+  assert.equal(diagnosis.configured, false);
+  assert.match(diagnosis.configurationError || '', /AI_RESPONSE_FORMAT inválido/);
+});
