@@ -35,6 +35,28 @@ test('dimensões são configuráveis e limitadas pela capacidade de armazenament
   assert.equal(parseProviderSettings({EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'a',EMBEDDING_DIMENSIONS:'768'},'embedding').dimensions,768);
   assert.equal(parseProviderSettings({EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'a',EMBEDDING_DIMENSIONS:'0'},'embedding').configured,false);
 });
+test('valores inválidos de timeout resultam em erro de configuração',()=>{
+  // Test invalid AI_TIMEOUT_MS values
+  assert.equal(parseProviderSettings({AI_PROVIDER:'ollama',AI_MODEL:'local',AI_TIMEOUT_MS:'-100'},'diagnosis').configured,false);
+  assert.equal(parseProviderSettings({AI_PROVIDER:'ollama',AI_MODEL:'local',AI_TIMEOUT_MS:'50.5'},'diagnosis').configured,false);
+  assert.equal(parseProviderSettings({AI_PROVIDER:'ollama',AI_MODEL:'local',AI_TIMEOUT_MS:'invalid'},'diagnosis').configured,false);
+  assert.equal(parseProviderSettings({AI_PROVIDER:'ollama',AI_MODEL:'local',AI_TIMEOUT_MS:'500000'},'diagnosis').configured,false);
+  
+  // Test invalid EMBEDDING_TIMEOUT_MS values
+  assert.equal(parseProviderSettings({EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'local',EMBEDDING_TIMEOUT_MS:'-100'},'embedding').configured,false);
+  assert.equal(parseProviderSettings({EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'local',EMBEDDING_TIMEOUT_MS:'50.5'},'embedding').configured,false);
+  assert.equal(parseProviderSettings({EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'local',EMBEDDING_TIMEOUT_MS:'invalid'},'embedding').configured,false);
+  assert.equal(parseProviderSettings({EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'local',EMBEDDING_TIMEOUT_MS:'500000'},'embedding').configured,false);
+  
+  // Test valid values don't cause errors
+  const validDiagnosis = parseProviderSettings({AI_PROVIDER:'ollama',AI_MODEL:'local',AI_TIMEOUT_MS:'1000'},'diagnosis');
+  assert.ok(validDiagnosis.configured);
+  assert.equal(validDiagnosis.timeoutMs, 1000);
+  
+  const validEmbedding = parseProviderSettings({EMBEDDING_PROVIDER:'ollama',EMBEDDING_MODEL:'local',EMBEDDING_TIMEOUT_MS:'2000'},'embedding');
+  assert.ok(validEmbedding.configured);
+  assert.equal(validEmbedding.timeoutMs, 2000);
+});
 test('trocar credencial isola o circuito e preserva o espaço vetorial',()=>{
   const a=parseProviderSettings({EMBEDDING_PROVIDER:'openai',EMBEDDING_MODEL:'a',EMBEDDING_API_KEY:'key-a'},'embedding');
   const b=parseProviderSettings({EMBEDDING_PROVIDER:'openai',EMBEDDING_MODEL:'a',EMBEDDING_API_KEY:'key-b'},'embedding');

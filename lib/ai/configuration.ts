@@ -51,8 +51,20 @@ export function parseProviderSettings(env: Environment, role: AiRole): ProviderS
   if (!generation && dimensions !== null && (!Number.isInteger(dimensions) || dimensions < 1 || dimensions > 16000)) configurationError ||= 'EMBEDDING_DIMENSIONS deve ser um inteiro entre 1 e 16000.';
   const responseFormat = env.AI_RESPONSE_FORMAT || 'json_schema';
   if (!['json_schema', 'json_object', 'prompt'].includes(responseFormat)) configurationError ||= 'AI_RESPONSE_FORMAT inválido.';
-  const rawTimeout = Number(env[prefix + 'TIMEOUT_MS'] || (generation ? 30000 : 20000));
-  const timeoutMs = Number.isInteger(rawTimeout) && rawTimeout >= 100 && rawTimeout <= 300000 ? rawTimeout : (generation ? 30000 : 20000);
+  const rawTimeout = env[prefix + 'TIMEOUT_MS'];
+  const timeoutMs = (() => {
+    if (rawTimeout === undefined || rawTimeout === '') {
+      return generation ? 30000 : 20000;
+    }
+    
+    const timeoutValue = Number(rawTimeout);
+    if (!Number.isInteger(timeoutValue) || timeoutValue < 100 || timeoutValue > 300000) {
+      configurationError ||= `${prefix}TIMEOUT_MS deve ser um inteiro entre 100 e 300000 ms.`;
+      return generation ? 30000 : 20000;
+    }
+    
+    return timeoutValue;
+  })();
   const revision = generation ? responseFormat : env.EMBEDDING_REVISION || '';
   const credentialFingerprint = createHash('sha256').update(apiKey || '').digest('hex').slice(0, 16);
   const identity = providerIdentity(provider, baseUrl, model, dimensions, revision + ':' + credentialFingerprint);
