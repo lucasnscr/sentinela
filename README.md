@@ -224,3 +224,7 @@ Para disponibilizar fora do computador, implemente autenticação, autorização
 - pgvector: https://github.com/pgvector/pgvector#hybrid-search
 - OpenAI Structured Outputs: https://developers.openai.com/api/docs/guides/structured-outputs
 - Prometheus: https://prometheus.io/docs/alerting/latest/overview/
+
+## Implementar uma issue do próprio Sentinela
+
+O [guia de implementação local](docs/implementation-local.md) usa OpenCode/Qwen em VM dedicada, com engine compartilhado por SHA. Essa execução de desenvolvimento é independente do provedor de diagnóstico e não habilita autorreparo do Sentinela.

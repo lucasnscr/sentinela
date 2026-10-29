@@ -1,13 +1,14 @@
 import {after,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {pool} from '../../lib/db';
-import {getCase,saveCase} from '../../lib/sdlc/store';
+import {getCase} from '../../lib/sdlc/store';
 import {acceptLifecycleEvent} from '../../lib/sdlc/events';
 import {cancelDevelopment,reconcileDevelopment} from '../../worker/sdlc/development';
 import {createSdlc} from '../../worker/sdlc';
 import {protocol} from '../../contracts/sdlc-v1.mjs';
 import {caseFixture} from './helpers/sdlc';
 after(()=>pool.end());
+async function ageCase(id:string){await pool.query("UPDATE remediation_cases SET payload=jsonb_set(payload,'{updatedAt}',to_jsonb($2::text)) WHERE id=$1",[id,new Date(0).toISOString()]);}
 function sender(f:Awaited<ReturnType<typeof caseFixture>>){let seq=0;return (type:string,extra:Record<string,unknown>={})=>acceptLifecycleEvent({protocol,type,id:'outcome:'+f.item.id+':'+(++seq),at:new Date().toISOString(),caseId:f.item.id,proposalHash:f.item.proposalHash,repository:f.item.repository,service:f.item.service,environment:'test',issueNumber:1,pullRequestNumber:2,commitSha:'a'.repeat(40),executionId:'gha-1',reason:type==='pull_request.closed'?'closed_without_merge':type.endsWith('cancelled')?'cancelled':'failure',...extra},f.settings);}
 test('CI falha, retoma com execução nova e ignora execução antiga; encerramento é terminal',async()=>{
  const f=await caseFixture(),send=sender(f);try{
@@ -32,7 +33,7 @@ test('interrupção pré-PR e cancelamento revisado preservam limites',async()=>
 });
 test('abandono escala uma vez e exige encerrar PR antes de nova tentativa',async()=>{
  const f=await caseFixture(),send=sender(f);try{
-  await send('implementation.published');const item=(await getCase(f.item.id))!;item.updatedAt=new Date(0).toISOString();await saveCase(item);
+  await send('implementation.published');const item=(await getCase(f.item.id))!;await ageCase(item.id);
   await assert.rejects(cancelDevelopment(item.id,item.proposalHash,'Cancelar execução'),/Encerre a PR/);
   await reconcileDevelopment({...f.settings,inactivityTimeoutMs:1});await reconcileDevelopment({...f.settings,inactivityTimeoutMs:1});
   assert.equal((await getCase(item.id))?.state,'abandoned');
@@ -46,7 +47,7 @@ test('entrega sem recibo bloqueia nova mutação; recibo exato reconcilia a veri
  const f=await caseFixture(),send=sender(f);try{
   const deployment={deploymentId:'release-1',artifactDigest:'sha256:'+'b'.repeat(64)};
   await send('implementation.published');await send('deployment.started',deployment);
-  const item=(await getCase(f.item.id))!;item.updatedAt=new Date(0).toISOString();await saveCase(item);
+  const item=(await getCase(f.item.id))!;await ageCase(item.id);
   await reconcileDevelopment({...f.settings,deploymentTimeoutMs:1});assert.equal((await getCase(item.id))?.state,'deployment_uncertain');
   await assert.rejects(send('deployment.started',deployment),/fora de ordem/);
   await assert.rejects(send('deployment.completed',{...deployment,deploymentId:'other'}),/divergente/);

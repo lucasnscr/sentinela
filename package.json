@@ -9,7 +9,9 @@
     "url": "git+https://github.com/lucasnscr/sentinela.git"
   },
   "homepage": "https://github.com/lucasnscr/sentinela#readme",
-  "bugs": { "url": "https://github.com/lucasnscr/sentinela/issues" },
+  "bugs": {
+    "url": "https://github.com/lucasnscr/sentinela/issues"
+  },
   "private": true,
   "type": "module",
   "engines": {
@@ -33,7 +35,8 @@
     "test:ai": "node --env-file-if-exists=.env.local --import tsx scripts/smoke-ai.ts",
     "test:e2e:provider": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-provider.ts",
     "test:e2e:operations": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-operations.ts",
-    "test:e2e:sdlc": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-sdlc.ts"
+    "test:e2e:sdlc": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-sdlc.ts",
+    "implement:issue": "node --import tsx scripts/implement-issue.ts"
   },
   "dependencies": {
     "@langchain/core": "latest",

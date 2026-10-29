@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "repository": "lucasnscr/sentinela",
+  "profile": "sentinela-typescript",
+  "engineRepository": "lucasnscr/issue-to-pr-ai",
+  "engineSha": "42f4df93a9f166253758ba49fe7ef7d7bc2c6340"
+}
