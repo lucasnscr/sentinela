@@ -78,7 +78,7 @@ O comando reproduzível, no checkout do Sentinela, é `ISSUE_TO_PR_AI_DIR=/camin
 
 O piloto de entrega Kubernetes usa imagem por digest, job protegido e precondições de identidade, versão e imagem esperada. Um alvo alterado concorrentemente interrompe a operação. O rollback busca restaurar a imagem anterior dentro desses mesmos limites.
 
-No teste conjunto, a troca de artefatos usa Docker local. O adaptador Kubernetes tem testes de contrato; sua adoção em um cluster exige validar identidade, rede, registry e políticas. Azure Functions já possui observação e ajustes no Sentinela, mas a entrega deste piloto é Kubernetes.
+No teste conjunto, a troca de artefatos usa Docker local. O adaptador Kubernetes tem testes de contrato; sua adoção em um cluster exige validar identidade, rede, registry e políticas. Azure Functions possui observação e ajustes testados com respostas controladas; a entrega exercitada neste laboratório usa Docker.
 
 Um hook nos dois repositórios também limita arquivos mantidos a 5.000 tokens estimados, calculados por bytes divididos por quatro. Ele examina apenas o conteúdo staged, exclui lockfiles e codegen e orienta a divisão por responsabilidade. Esse é um controle de manutenção dentro de um conjunto maior de controles de execução.
 
@@ -86,6 +86,22 @@ Ainda há evolução a fazer: transformar incidentes reais em datasets de avalia
 
 A próxima decisão de adoção é escolher um serviço e um ambiente, definir sinais de recuperação e ensaiar a falha e a reversão. Os resultados desse ambiente devem orientar qualquer aumento de autonomia. No projeto apresentado aqui, cada passagem do ciclo deixa um artefato ou um evento que permite conferir o que foi autorizado, executado e observado.
 
-As correções desta auditoria estão nas PRs [Sentinela #4](https://github.com/lucasnscr/sentinela/pull/4) e [issue-to-pr-ai #54](https://github.com/lucasnscr/issue-to-pr-ai/pull/54), abertas em rascunho para revisão do mantenedor. O resultado dos testes descreve essas revisões; a adoção na branch principal depende da decisão de integração.
+As correções da auditoria inicial foram integradas pelas PRs [Sentinela #4](https://github.com/lucasnscr/sentinela/pull/4) e [issue-to-pr-ai #54](https://github.com/lucasnscr/issue-to-pr-ai/pull/54). Os resultados de cada ampliação posterior estão nos changelogs dos dois repositórios.
 
-*Nota de acesso: o issue-to-pr-ai é público; o Sentinela estava privado durante esta validação. Os links respeitam as permissões de cada repositório. Os resultados deste artigo correspondem à referência e ao teste controlado descritos, realizados em 26 de outubro de 2026.*
+*Nota de acesso: os dois repositórios são públicos. A auditoria inicial foi realizada em 26 de outubro de 2026; a ampliação com inferência local descrita abaixo foi validada em 29 de outubro de 2026.*
+
+## O que mudou com OpenCode, Qwen e Ollama
+
+A implementação deixou de depender de um único provedor. O engine usa uma política explícita de modelos e o primeiro modelo local avaliado foi qwen3-coder:30b, com OpenCode 1.19.3 e contexto efetivo de 64 mil tokens. Diagnóstico operacional e embeddings continuam com configurações independentes. O monitoramento pode usar regras enquanto a implementação ocupa o modelo local.
+
+O GitHub autoriza a issue antes de liberar uma VM descartável. O modelo edita sem comandos e sem token de publicação; o patch e o uso são congelados antes da execução do candidato. Outro runner faz a regressão, e um publisher revalida autorização, base e hash antes de abrir uma PR draft. No Sentinela, a publicação local preserva a restrição existente de Actions. O agente não aprova nem integra sua própria PR.
+
+No piloto real, o Sentinela detectou uma falha sintética de ingresso e publicou a [issue #85](https://github.com/lucasnscr/issue-to-pr-ai/issues/85). Após revisão, o Qwen gerou a correção que chegou à [PR #87](https://github.com/lucasnscr/issue-to-pr-ai/pull/87): 47 segundos, 18 etapas e 196.677 unidades de política. CI e revisão precederam o merge. O laboratório implantou o SHA integrado e confirmou seis amostras saudáveis, dados de referência corretos e 5.005 ms de estabilidade.
+
+Também houve entrega no próprio Sentinela pela [PR #23](https://github.com/lucasnscr/sentinela/pull/23). A execução do modelo terminou em 179 segundos, com 20 etapas e 285.436 unidades de política. A revisão encontrou testes duplicados e uma verificação de identidade ausente; um commit separado do mantenedor corrigiu testes/documentação. O código de produção permaneceu o patch Qwen. Esse registro importa: CI verde e uma resposta concluída do modelo não substituem revisão.
+
+As tentativas que falharam ficaram bloqueadas. Um HTTP 502 do Maven Central interrompeu a primeira validação Java; o compilador rejeitou um teste TypeScript com acesso possivelmente nulo. Cancelamento e reinício de VM também foram ensaiados. O reinício revelou um problema na ordem de descarte, tratado em uma correção própria do engine. Nenhuma dessas tentativas foi apresentada como entrega bem-sucedida.
+
+A trilha com modelo/GitHub reais é diferente da suíte determinística, que controla GitHub e a resposta do agente para repetir falhas de CI, eventos antigos, PR encerrada, rollback, novas tentativas e aprendizado. No piloto operacional real, o ingresso e o adaptador de métricas são controlados; Java, PostgreSQL, GitHub, modelo, CI, deploy Docker e verificação são reais. Isso comprova a referência nesse laboratório e não certifica escala ou conformidade de produção.
+
+O [guia interativo exportável](https://github.com/lucasnscr/issue-to-pr-ai/tree/main/docs/product) e os changelogs permitem consultar responsáveis, condições de avanço, falhas, ambientes e evidências sem confundir essas trilhas.
