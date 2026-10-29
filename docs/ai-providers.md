@@ -10,6 +10,8 @@ As variáveis são lidas no início dos processos. Reinicie a interface e o work
 | --- | --- |
 | Diagnóstico | AI_PROVIDER, AI_MODEL, AI_BASE_URL, AI_API_KEY_ENV, AI_TIMEOUT_MS, AI_RESPONSE_FORMAT |
 | Embeddings | EMBEDDING_PROVIDER, EMBEDDING_MODEL, EMBEDDING_BASE_URL, EMBEDDING_API_KEY_ENV, EMBEDDING_DIMENSIONS |
+| Modo de contingência | AI_MODE=rules |
+| Protocolo de saída compatível | AI_RESPONSE_FORMAT=json_schema, json_object ou prompt |
 
 AI_RESPONSE_FORMAT é uma configuração exclusiva do diagnóstico e não afeta a configuração de embeddings. Valores válidos são: json_schema, json_object ou prompt.
 
