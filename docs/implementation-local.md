@@ -28,4 +28,6 @@ O workflow AI implementation usa o mesmo SHA revisado do engine. Um comentário 
 
 A geração acontece em VM Linux descartável sem home montado. O patch é congelado antes da validação em runner hospedado. O Sentinela mantém a restrição existente que impede Actions de criar/aprovar PRs: após os testes, um publisher local confere a identidade do workflow e publica com a sessão gh do operador, sem executar o candidato no host. Um recibo hospedado exige a PR correspondente; falha de publicação não é classificada como conclusão.
 
-O diagnóstico operacional continua independente. Não configure o endpoint de diagnóstico para o gateway efêmero da implementação. A fila inicial aceita uma inferência de implementação por vez. Esta infraestrutura permanece desativada até o merge e a execução dos pilotos GitHub; consulte o changelog para evidências reais.
+O diagnóstico operacional continua independente. Não configure o endpoint de diagnóstico para o gateway efêmero da implementação. A fila inicial aceita uma inferência de implementação por vez. Os pilotos GitHub foram executados e as flags locais estão habilitadas; o provider precisa permanecer online no host dedicado. Não há serviço instalado no boot.
+
+O [documento interativo do produto](https://github.com/lucasnscr/issue-to-pr-ai/tree/main/docs/product) reúne etapas, ambientes, permissões, falhas e evidências. Pode ser servido localmente ou exportado como HTML portátil. O [piloto operacional real](real-local-ai-pilot.md) e a suíte SDLC controlada têm relatórios e limites separados.

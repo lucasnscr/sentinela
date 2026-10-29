@@ -36,6 +36,7 @@
     "test:e2e:provider": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-provider.ts",
     "test:e2e:operations": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-operations.ts",
     "test:e2e:sdlc": "node --env-file-if-exists=.env.local --import tsx scripts/e2e-sdlc.ts",
+    "test:e2e:sdlc:real": "node --env-file-if-exists=.env.local --import tsx scripts/sdlc-real-pilot.ts",
     "implement:issue": "node --import tsx scripts/implement-issue.ts"
   },
   "dependencies": {
